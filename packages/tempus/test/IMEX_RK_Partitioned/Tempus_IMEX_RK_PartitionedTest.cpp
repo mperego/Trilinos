@@ -13,10 +13,10 @@
 #include "Thyra_VectorStdOps.hpp"
 
 #include "Tempus_IntegratorBasic.hpp"
-#include "Tempus_WrapperModelEvaluatorPairIMEX_Basic.hpp"
+#include "Tempus_WrapperModelEvaluatorPairPartIMEX_Basic.hpp"
 
 #include "../TestModels/VanDerPol_IMEX_ExplicitModel.hpp"
-#include "../TestModels/VanDerPol_IMEX_ImplicitModel.hpp"
+#include "../TestModels/VanDerPol_IMEXPart_ImplicitModel.hpp"
 #include "../TestUtils/Tempus_ConvergenceTestUtils.hpp"
 
 #include <vector>
@@ -38,10 +38,10 @@ using Tempus::SolutionState;
 TEUCHOS_UNIT_TEST(IMEX_RK, VanDerPol)
 {
   std::vector<std::string> stepperTypes;
-  stepperTypes.push_back("IMEX RK 1st order");
-  stepperTypes.push_back("IMEX RK SSP2"     );
-  stepperTypes.push_back("IMEX RK ARS 233"  );
-  //stepperTypes.push_back("General IMEX RK"  );
+  stepperTypes.push_back("Partitioned IMEX RK 1st order");
+  stepperTypes.push_back("Partitioned IMEX RK SSP2"     );
+  stepperTypes.push_back("Partitioned IMEX RK ARS 233"  );
+  //stepperTypes.push_back("General Partitioned IMEX RK"  );
 
   std::vector<double> stepperOrders;
   stepperOrders.push_back(1.21571);
@@ -87,13 +87,17 @@ TEUCHOS_UNIT_TEST(IMEX_RK, VanDerPol)
         Teuchos::rcp(new VanDerPol_IMEX_ExplicitModel<double>(vdpmPL));
 
       // Setup the implicit VanDerPol ModelEvaluator (reuse vdpmPL)
-      RCP<VanDerPol_IMEX_ImplicitModel<double> > implicitModel =
-        Teuchos::rcp(new VanDerPol_IMEX_ImplicitModel<double>(vdpmPL));
+      RCP<VanDerPol_IMEXPart_ImplicitModel<double> > implicitModel =
+        Teuchos::rcp(new VanDerPol_IMEXPart_ImplicitModel<double>(vdpmPL));
 
       // Setup the IMEX Pair ModelEvaluator
-      RCP<Tempus::WrapperModelEvaluatorPairIMEX_Basic<double> > model =
-          Teuchos::rcp(new Tempus::WrapperModelEvaluatorPairIMEX_Basic<double>(
-                                                 explicitModel, implicitModel));
+      const int numExplicitBlocks = 1;
+      const int parameterIndex = 0;
+      RCP<Tempus::WrapperModelEvaluatorPairPartIMEX_Basic<double> > model =
+          Teuchos::rcp(
+            new Tempus::WrapperModelEvaluatorPairPartIMEX_Basic<double>(
+                             explicitModel, implicitModel,
+                             numExplicitBlocks, parameterIndex));
 
       // Set the Stepper
       RCP<ParameterList> pl = sublist(pList, "Tempus", true);
@@ -133,12 +137,12 @@ TEUCHOS_UNIT_TEST(IMEX_RK, VanDerPol)
         std::string fname = "Tempus_"+stepperName+"_VanDerPol-Ref.dat";
         if (n == 0) fname = "Tempus_"+stepperName+"_VanDerPol.dat";
         std::ofstream ftmp(fname);
-        RCP<const SolutionHistory<double> > solutionHistory =
+        RCP<SolutionHistory<double> > solutionHistory =
           integrator->getSolutionHistory();
         int nStates = solutionHistory->getNumStates();
         for (int i=0; i<nStates; i++) {
-          RCP<const SolutionState<double> > solutionState = (*solutionHistory)[i];
-          RCP<const Thyra::VectorBase<double> > x = solutionState->getX();
+          RCP<SolutionState<double> > solutionState = (*solutionHistory)[i];
+          RCP<Thyra::VectorBase<double> > x = solutionState->getX();
           double ttime = solutionState->getTime();
           ftmp << ttime << "   " << get_ele(*x, 0) << "   " << get_ele(*x, 1)
                << std::endl;
