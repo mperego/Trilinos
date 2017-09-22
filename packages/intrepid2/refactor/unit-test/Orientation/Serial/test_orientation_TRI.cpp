@@ -1,8 +1,8 @@
 // @HEADER
 // ************************************************************************
 //
-//               Rapid Optimization Library (ROL) Package
-//                 Copyright (2014) Sandia Corporation
+//                           Intrepid2 Package
+//                 Copyright (2007) Sandia Corporation
 //
 // Under terms of Contract DE-AC04-94AL85000, there is a non-exclusive
 // license for use of this work by or on behalf of the U.S. Government.
@@ -34,36 +34,29 @@
 // NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Questions? Contact lead developers:
-//              Drew Kouri   (dpkouri@sandia.gov) and
-//              Denis Ridzal (dridzal@sandia.gov)
+// Questions? Contact Kyungjoo Kim  (kyukim@sandia.gov), or
+//                    Mauro Perego  (mperego@sandia.gov)
 //
 // ************************************************************************
 // @HEADER
 
-#pragma once
+/** \file test_01.cpp
+    \brief  Test for checking orientation tools for triangular elements.
+    \author Created by Mauro Perego
+*/
 
-// C++ Includes
-#include <algorithm>
-#include <complex>
-#include <exception>
-#include <limits>
-#include <map>
-#include <memory>
-#include <tuple>
-#include <type_traits>
-#include <vector>
+#include "Kokkos_Core.hpp"
 
+#include "test_orientation_TRI.hpp"
 
-// Utility
-#include "XROL_ElementwiseFunction.hpp"
-#include "XROL_Exception.hpp"
-#include "XROL_Magnitude.hpp"
-#include "XROL_Output.hpp"
+int main(int argc, char *argv[]) {
 
-// Vector
-#include "XROL_VectorTraits.hpp"
-#include "XROL_StdVectorTraits.hpp"
-#include "XROL_CheckVector.hpp"
+  const bool verbose = (argc-1) > 0;
+  Kokkos::initialize();
+  
+  const int r_val = Intrepid2::Test::OrientationTri<double,Kokkos::Serial>(verbose);
 
-// Objective
+  Kokkos::finalize();
+  return r_val;
+}
+
