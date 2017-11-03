@@ -72,20 +72,26 @@ namespace Intrepid2 {
       const ordinal_type card = vinv.dimension(0);
       const ordinal_type npts = input.dimension(0);
 
-      typedef typename inputViewType::value_type value_type;
+      typedef typename Kokkos::DynRankView<typename workViewType::value_type, typename workViewType::memory_space> viewType;
+
       typedef Kokkos::pair<ordinal_type,ordinal_type> range_type;
       const auto input_x = Kokkos::subview(input, Kokkos::ALL(), range_type(0,1));
       const auto input_y = Kokkos::subview(input, Kokkos::ALL(), range_type(1,2));
 
-      const auto range0 = range_type(0,card);
-      const auto range1 = range_type(card,2*card);
-      const auto range2 = range_type(2*card,3*card);
-
+      const int fad = get_dimension_scalar(work);
+      auto vcprop = Kokkos::common_view_alloc_prop(work);
+      
       switch (opType) {
       case OPERATOR_VALUE: {
-        const auto work_line = Kokkos::subview(work, range0, Kokkos::ALL());
-        const auto output_x = Kokkos::subview(work, range1, Kokkos::ALL());
-        const auto output_y = Kokkos::subview(work, range2, Kokkos::ALL());
+        typename workViewType::pointer_type ptr = work.data();
+
+        viewType work_line(Kokkos::view_wrap(ptr, vcprop), card, npts);
+        ptr += (card*npts*fad);
+
+        viewType output_x(Kokkos::view_wrap(ptr, vcprop), card, npts);
+        ptr += (card*npts*fad);
+
+        viewType output_y(Kokkos::view_wrap(ptr, vcprop), card, npts);
         
         Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_VALUE>::
           getValues(output_x, input_x, work_line, vinv);
@@ -103,28 +109,35 @@ namespace Intrepid2 {
       }
       case OPERATOR_CURL: {
         for (auto l=0;l<2;++l) {
-          auto  work_line = Kokkos::subview(work, range0, Kokkos::ALL());
-          decltype(work_line)  output_x, output_y;
+          typename workViewType::pointer_type ptr = work.data();
+
+          viewType work_line(Kokkos::view_wrap(ptr, vcprop), card, npts);
+          ptr += (card*npts*fad);
           
-          value_type s = 0.0;
+          Kokkos::DynRankView<typename workViewType::value_type,
+            typename workViewType::memory_space,Kokkos::MemoryUnmanaged> output_x, output_y;
+          
+          typename workViewType::value_type s = 0.0;
           if (l) {
             // l = 1
-            output_x = Kokkos::subview(work, range1, Kokkos::ALL(), Kokkos::ALL());
+            output_x = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts, 1);
+            ptr += (card*npts*fad);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_Dn>::
               getValues(output_x, input_x, work_line, vinv, 1);                           
 
-            output_y = Kokkos::subview(work, range2, Kokkos::ALL());
+            output_y = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_VALUE>::
               getValues(output_y, input_y, work_line, vinv);                           
 
             s = -1.0;
           } else {
             // l = 0
-            output_x = Kokkos::subview(work, range1, Kokkos::ALL());
+            output_x = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts);
+            ptr += (card*npts*fad);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_VALUE>::
               getValues(output_x, input_x, work_line, vinv);                           
 
-            output_y = Kokkos::subview(work, range2, Kokkos::ALL(), Kokkos::ALL());
+            output_y = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts, 1);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_Dn>::
               getValues(output_y, input_y, work_line, vinv, 1);                           
 
@@ -155,29 +168,35 @@ namespace Intrepid2 {
       case OPERATOR_Dn: {
         const auto dkcard = opDn + 1;
         for (auto l=0;l<dkcard;++l) {
-          auto  work_line = Kokkos::subview(work, range0, Kokkos::ALL());
+          typename workViewType::pointer_type ptr = work.data();
+
+          viewType work_line(Kokkos::view_wrap(ptr, vcprop), card, npts);
+          ptr += (card*npts*fad);
           
-          decltype(work_line)  output_x, output_y;
+          Kokkos::DynRankView<typename workViewType::value_type,
+            typename workViewType::memory_space,Kokkos::MemoryUnmanaged> output_x, output_y;
           
           const auto mult_x = opDn - l;
           const auto mult_y = l;
           
           if (mult_x) {
-            output_x = Kokkos::subview(work, range1, Kokkos::ALL(), Kokkos::ALL());
+            output_x = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts, 1);
+            ptr += (card*npts*fad);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_Dn>::
               getValues(output_x, input_x, work_line, vinv, mult_x);                           
           } else {
-            output_x = Kokkos::subview(work, range1, Kokkos::ALL());
+            output_x = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts);
+            ptr += (card*npts*fad);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_VALUE>::
               getValues(output_x, input_x, work_line, vinv);                           
           }
 
           if (mult_y) {
-            output_y = Kokkos::subview(work, range2, Kokkos::ALL(), Kokkos::ALL());
+            output_y = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts, 1);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_Dn>::
               getValues(output_y, input_y, work_line, vinv, mult_y);                           
           } else {
-            output_y = Kokkos::subview(work, range2, Kokkos::ALL());
+            output_y = viewType(Kokkos::view_wrap(ptr, vcprop), card, npts);
             Impl::Basis_HGRAD_LINE_Cn_FEM::Serial<OPERATOR_VALUE>::
               getValues(output_y, input_y, work_line, vinv);                           
           }

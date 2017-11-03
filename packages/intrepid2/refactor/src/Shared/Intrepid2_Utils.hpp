@@ -55,6 +55,8 @@
 #include "Kokkos_Core.hpp"
 #ifdef HAVE_INTREPID2_SACADO
   #include "Sacado_Traits.hpp"
+  #include "Kokkos_ViewFactory.hpp"
+  #include "KokkosExp_View_Fad.hpp"
 #endif
 
 namespace Intrepid2 {
@@ -277,6 +279,18 @@ namespace Intrepid2 {
     return value;
 #endif
   }
+
+  template<typename T>
+  KOKKOS_FORCEINLINE_FUNCTION
+#ifdef HAVE_INTREPID2_SACADO
+  //TODO: checking with Eric Phipps why Kokkos::is_view_fad<T>::value is always false.
+  //static ordinal_type get_dimension_scalar(const T& view) {return Kokkos::is_view_fad<T>::value ? Kokkos::dimension_scalar(view) : 1;}
+  static ordinal_type get_dimension_scalar(const T& view) {
+    ordinal_type dim = Kokkos::dimension_scalar(view);
+    return (dim > 0) ? dim : 1;}
+#else
+  static ordinal_type get_dimension_scalar(const T& ) {return 1;}
+#endif
 
 
 
