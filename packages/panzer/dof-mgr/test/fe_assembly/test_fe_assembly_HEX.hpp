@@ -48,7 +48,7 @@
   Local matrices and right-hand-side are computed using high-order HGRAD elements on Hexahedra provided by the package Intrepid2
   Local matrices and right-hand-side are assembled into global matrix A and right-hand-side b using the 
   FECrsMatrix and FEMultivector provided by Tpetra package
-  
+
   The code is then verified by checking the norm of the residual r = b - A x. 
   When the solution belong to the chosen finite element space, the residual norm should be close to machine eps.
 
@@ -106,72 +106,131 @@ namespace Discretization {
 
 namespace Example {
 
-  // ************************************ Define Analytic functions **************************************
+// ************************************ Define Analytic functions **************************************
 
-  struct Fun {
-    double
-    KOKKOS_INLINE_FUNCTION
-    operator()(const double& x, const double& y, const double& z) const {
-      return x*x*(x-1)*(x-1) + y*y*(y-1)*(y-1) + z*z*(z-1)*(z-1);
-      //const double pi = 3.14159265358979323846;
-      //return cos(pi*x)*cos(pi*y)*cos(pi*z);
+struct Fun {
+  double
+  KOKKOS_INLINE_FUNCTION
+  operator()(const double& x, const double& y, const double& z) const {
+    return x*x*(x-1)*(x-1) + y*y*(y-1)*(y-1) + z*z*(z-1)*(z-1);
+    //const double pi = 3.14159265358979323846;
+    //return cos(pi*x)*cos(pi*y)*cos(pi*z);
+  }
+};
+
+struct FunLapl {
+  double
+  KOKKOS_INLINE_FUNCTION
+  operator()(const double& x, const double& y, const double& z) const {
+    return  2*(x-1)*(x-1)+8*x*(x-1)+2*x*x + 2*(y-1)*(y-1)+8*y*(y-1)+2*y*y +2*(z-1)*(z-1)+8*z*(z-1)+2*z*z;
+    //const double pi = 3.14159265358979323846;
+    //  return -3 * pi * pi *cos(pi*x)*cos(pi*y)*cos(pi*z);
+  }
+};
+
+struct FunRhs {
+  double
+  KOKKOS_INLINE_FUNCTION
+  operator()(const double& x, const double& y, const double& z) const {
+    return  fun(x,y,z) - funLapl(x,y,z);
+  }
+  Fun fun;
+  FunLapl funLapl;
+};
+
+template<typename DynRankViewType>
+class EvalRhsFunctor {
+public:
+  DynRankViewType funAtPoints;
+  DynRankViewType points;
+  Fun fun;
+  FunLapl funLapl;
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int elem) const
+  {
+    for(int i=0;i<static_cast<int>(points.extent(1));i++) {
+      auto x = points(elem,i,0), y = points(elem,i,1), z= points(elem,i,2);
+      funAtPoints(elem,i) =fun(x,y,z) - funLapl(x,y,z);
     }
-  };
+  }
+};
 
-  struct FunLapl {
-    double
-    KOKKOS_INLINE_FUNCTION
-    operator()(const double& x, const double& y, const double& z) const {
-      return  2*(x-1)*(x-1)+8*x*(x-1)+2*x*x + 2*(y-1)*(y-1)+8*y*(y-1)+2*y*y +2*(z-1)*(z-1)+8*z*(z-1)+2*z*z;
-      //const double pi = 3.14159265358979323846;
-      //  return -3 * pi * pi *cos(pi*x)*cos(pi*y)*cos(pi*z);
+template<typename DynRankViewType>
+class EvalSolFunctor {
+public:
+  DynRankViewType funAtPoints;
+  DynRankViewType points;
+  Fun fun;
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int elem) const
+  {
+    for(int i=0;i<static_cast<int>(points.extent(1));i++) {
+      auto x = points(elem,i,0), y = points(elem,i,1), z= points(elem,i,2);
+      funAtPoints(elem,i) = fun(x,y,z);
     }
-  };
+  }
+};
 
-  struct FunRhs {
-    double
-    KOKKOS_INLINE_FUNCTION
-    operator()(const double& x, const double& y, const double& z) const {
-      return  fun(x,y,z) - funLapl(x,y,z);
+
+template<typename rhsType, typename elemType, typename localMapType,
+typename gidType, typename lidType, typename offsetType,
+typename localMatrixType, typename localRhsType, int maxCardinality>
+struct Functor {
+  const rhsType elemsRHS;
+  const elemType  elemsMat;
+  const localMapType localColMap;
+  const gidType elementGIDsKokkos;
+  const lidType elementLIDs;
+  const offsetType elmtOffsetKokkos;
+  localMatrixType localMatrix;
+  localRhsType localRHS;
+
+  using local_ordinal_t = typename localMapType::local_ordinal_type;
+  using scalar_t = typename rhsType::value_type;
+
+
+  KOKKOS_INLINE_FUNCTION
+  Functor(const rhsType elemsRHS_,
+      const elemType  elemsMat_,
+      const localMapType localColMap_,
+      const gidType elementGIDsKokkos_,
+      const lidType elementLIDs_,
+      const offsetType elmtOffsetKokkos_,
+      localMatrixType localMatrix_,
+      localRhsType localRHS_)
+  : elemsRHS(elemsRHS_), elemsMat(elemsMat_), localColMap(localColMap_), elementGIDsKokkos(elementGIDsKokkos_),
+    elementLIDs(elementLIDs_), elmtOffsetKokkos(elmtOffsetKokkos_), localMatrix(localMatrix_), localRHS(localRHS_)  {}
+
+  KOKKOS_INLINE_FUNCTION
+  void operator()(const int elemId) const {
+    local_ordinal_t cLIDs[maxCardinality];
+    scalar_t vals[maxCardinality];
+    local_ordinal_t basisCardinality = elemsRHS.extent(1);
+
+    // Get subviews
+    auto elemRHS    = Kokkos::subview(elemsRHS,elemId, Kokkos::ALL());
+    auto elemMat = Kokkos::subview(elemsMat,elemId, Kokkos::ALL(), Kokkos::ALL());
+
+    for(int nodeId=0; nodeId<basisCardinality; nodeId++) {
+      cLIDs[nodeId] = localColMap.getLocalElement(elementGIDsKokkos(elemId, nodeId));
     }
-    Fun fun;
-    FunLapl funLapl;
-  };
+    // For each node (row) on the current element
+    for (local_ordinal_t nodeId = 0; nodeId < basisCardinality; ++nodeId) {
+      const local_ordinal_t localRowId = elementLIDs(elemId,elmtOffsetKokkos(nodeId));
 
-  template<typename DynRankViewType>
-  class EvalRhsFunctor {
-  public:
-    DynRankViewType funAtPoints;
-    DynRankViewType points;
-    Fun fun;
-    FunLapl funLapl;
+      // Force atomics on sums
+      for (local_ordinal_t colId = 0; colId < basisCardinality; ++colId)
+        vals[colId] = elemMat(nodeId,colId);
 
-    KOKKOS_INLINE_FUNCTION
-    void operator()(const int elem) const
-    {
-      for(int i=0;i<static_cast<int>(points.extent(1));i++) {
-        auto x = points(elem,i,0), y = points(elem,i,1), z= points(elem,i,2);
-        funAtPoints(elem,i) =fun(x,y,z) - funLapl(x,y,z);
-      }
+      localMatrix.sumIntoValues (localRowId, cLIDs, basisCardinality, vals, true, true);
+
+      Kokkos::atomic_add (&(localRHS(cLIDs[nodeId],0)), elemRHS(nodeId));
     }
-  };
+  }
+};
 
-  template<typename DynRankViewType>
-  class EvalSolFunctor {
-  public:
-    DynRankViewType funAtPoints;
-    DynRankViewType points;
-    Fun fun;
-
-    KOKKOS_INLINE_FUNCTION
-    void operator()(const int elem) const
-    {
-      for(int i=0;i<static_cast<int>(points.extent(1));i++) {
-        auto x = points(elem,i,0), y = points(elem,i,1), z= points(elem,i,2);
-        funAtPoints(elem,i) = fun(x,y,z);
-      }
-    }
-  };
 
 template<typename ValueType, typename DeviceSpaceType>
 int feAssemblyHex(int argc, char *argv[]) {
@@ -186,10 +245,14 @@ int feAssemblyHex(int argc, char *argv[]) {
   typedef typename map_t::global_ordinal_type global_ordinal_t;
   typedef typename map_t::node_type           node_t;
   typedef Tpetra::FECrsGraph<local_ordinal_t,global_ordinal_t,node_t>      fe_graph_t;
+  typedef Tpetra::CrsGraph<local_ordinal_t,global_ordinal_t,node_t>      graph_t;
   typedef ValueType scalar_t;
+  typedef Tpetra::CrsMatrix<scalar_t, local_ordinal_t, global_ordinal_t> matrix_t;
+  typedef Tpetra::MultiVector<scalar_t, local_ordinal_t, global_ordinal_t> multivector_t;
   typedef Tpetra::FECrsMatrix<scalar_t, local_ordinal_t, global_ordinal_t> fe_matrix_t;
   typedef Tpetra::FEMultiVector<scalar_t, local_ordinal_t, global_ordinal_t> fe_multivector_t;
   typedef Tpetra::Vector<scalar_t, local_ordinal_t, global_ordinal_t> vector_t;
+  typedef Tpetra::Export<local_ordinal_t, global_ordinal_t>              Tpetra_Export;
 
   typedef Kokkos::DynRankView<global_ordinal_t,DeviceSpaceType> DynRankViewGId;
   typedef Kokkos::DynRankView<local_ordinal_t,DeviceSpaceType> DynRankViewLId;
@@ -213,7 +276,7 @@ int feAssemblyHex(int argc, char *argv[]) {
 
   try {
 
-    
+
     // ************************************ GET INPUTS **************************************
     constexpr local_ordinal_t dim = 3;
     int degree = 4;
@@ -226,6 +289,8 @@ int feAssemblyHex(int argc, char *argv[]) {
     int pz = np/(px*py);
     constexpr int bx=1, by=1, bz=1;  //blocks on each process. Here we assume there is only one block per process
     int verbose = 1;
+    int insertSingleEntry = 1;
+    int useFEMatrix = 1;
 
     // parse command line arguments
     Teuchos::CommandLineProcessor clp;
@@ -239,6 +304,8 @@ int feAssemblyHex(int argc, char *argv[]) {
     int cubDegree = -1;
     clp.setOption("quadrature-degree",&cubDegree);
     clp.setOption("timings-file",&timingsFile);
+    clp.setOption("insert-single-entry",&insertSingleEntry);
+    clp.setOption("use-fe-matrix",&useFEMatrix);
     clp.setOption("verbose", &verbose);
     auto cmdResult = clp.parse(argc,argv);
     cubDegree = (cubDegree == -1) ? 2*degree : cubDegree;    
@@ -249,14 +316,14 @@ int feAssemblyHex(int argc, char *argv[]) {
     }
 
     outStream = ((comm.getRank () == 0) && verbose) ?
-      getFancyOStream(Teuchos::rcpFromRef (std::cout)) :
-      getFancyOStream(Teuchos::rcp (new Teuchos::oblackholestream ()));
-   
+        getFancyOStream(Teuchos::rcpFromRef (std::cout)) :
+        getFancyOStream(Teuchos::rcp (new Teuchos::oblackholestream ()));
+
     *outStream << "DeviceSpace::  "; DeviceSpaceType::print_configuration(*outStream, false);
     *outStream << "HostSpace::    ";   HostSpaceType::print_configuration(*outStream, false);
     *outStream << "\n";
 
- 
+
     auto meshTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Mesh Generation")));
 
     // *********************************** MESH TOPOLOGY **********************************
@@ -305,9 +372,9 @@ int feAssemblyHex(int argc, char *argv[]) {
     *outStream << std::setw(5) << px <<
         std::setw(5) << py <<
         std::setw(5) << pz << "\n\n";
-    
+
     global_ordinal_t totalNumElements = numOwnedElems*px*py*pz;
-     *outStream << "Total number of elements: " << totalNumElements << ", number of DoFs per element: " << basisCardinality << "\n";
+    *outStream << "Total number of elements: " << totalNumElements << ", number of DoFs per element: " << basisCardinality << "\n";
 
     // Print mesh information
 
@@ -333,7 +400,7 @@ int feAssemblyHex(int argc, char *argv[]) {
       hexaLinearBasis.getDofCoords(refVertices);
       auto refVerticesHost = Kokkos::create_mirror_view(refVertices);   
       Kokkos::deep_copy(refVerticesHost, refVertices);
-   
+
       auto elemTriplet = connManager->getMyElementsTriplet();
       double h[3] = {hx, hy, hz};
 
@@ -350,7 +417,7 @@ int feAssemblyHex(int argc, char *argv[]) {
 
     meshTimer = Teuchos::null;
 
-    
+
     // *********************************** COMPUTE ELEMENTS' ORIENTATION BASED ON GLOBAL IDs  ************************************
 
 
@@ -448,12 +515,12 @@ int feAssemblyHex(int argc, char *argv[]) {
     fst::integrate(elemsMat, transformedBasisValuesAtQPointsOriented, weightedTransformedBasisValuesAtQPointsOriented, true);
     Kokkos::fence(); //make sure that funAtQPoints has been evaluated
     fst::integrate(elemsRHS, funAtQPoints, weightedTransformedBasisValuesAtQPointsOriented);
-    
+
     localFeAssemblyTimer =  Teuchos::null;
 
 
-    // ************************************ GENERATE GRAPH **************************************
 
+    // ************************************ COMPUTING MAPS **************************************
     auto mapsTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Creating Maps")));
 
     auto globalIndexer = Teuchos::rcp_dynamic_cast<const panzer::GlobalIndexer >(dofManager);
@@ -463,79 +530,91 @@ int feAssemblyHex(int argc, char *argv[]) {
     globalIndexer->getOwnedAndGhostedIndices(ownedAndGhostedIndices);
     Teuchos::RCP<const map_t> ownedAndGhosted_map = Teuchos::rcp(new const map_t(Teuchos::OrdinalTraits<global_ordinal_t>::invalid(),ownedAndGhostedIndices,0,Teuchos::rcpFromRef(comm)));
 
-     *outStream << "Total number of DoFs: " << ownedMap->getGlobalNumElements() << ", number of owned DoFs: " << ownedMap->getNodeNumElements() << "\n";
-    
+    *outStream << "Total number of DoFs: " << ownedMap->getGlobalNumElements() << ", number of owned DoFs: " << ownedMap->getNodeNumElements() << "\n";
+
     auto rowMap = ownedMap;
     auto domainMap = ownedMap;
-
-    mapsTimer = Teuchos::null;
-    auto graphGenerationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Graph Generation")));
-    auto feGraph = Teuchos::rcp(new fe_graph_t(rowMap, ownedAndGhosted_map, 8*basisCardinality));
 
     Teuchos::Array<global_ordinal_t> globalIdsInRow(basisCardinality);
     const std::string blockId = "eblock-0_0_0";
     auto elmtOffsetKokkos = dofManager->getGIDFieldOffsetsKokkos(blockId,0);
 
+    mapsTimer = Teuchos::null;
 
-    DynRankViewGId ConstructWithLabel(elementGIDsKokkos, numOwnedElems, basisCardinality);
+    Teuchos::RCP<matrix_t> A_;
+    Teuchos::RCP<multivector_t> b_;
 
-    // fill graph
-    // for each element in the mesh...
-    Tpetra::beginFill(*feGraph);
-    for(int elemId=0; elemId<numOwnedElems; elemId++)
+
+
+    if(useFEMatrix)
     {
-      // Populate globalIdsInRow:
-      // - Copy the global node ids for current element into an array.
-      // - Since each element's contribution is a clique, we can re-use this for
-      //   each row associated with this element's contribution.
-      std::vector<global_ordinal_t> elementGIDs;
-      dofManager->getElementGIDs(elemId, elementGIDs);
-      for(int nodeId=0; nodeId<basisCardinality; nodeId++) {
-        globalIdsInRow[nodeId] = elementGIDs[elmtOffsetKokkos(nodeId)];
-        elementGIDsKokkos(elemId, nodeId) = globalIdsInRow[nodeId];
-      }
+      // ************************************ GENERATE GRAPH **************************************
+      auto graphGenerationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Graph Generation")));
+      auto feGraph = Teuchos::rcp(new fe_graph_t(rowMap, ownedAndGhosted_map, 8*basisCardinality));
 
-      // Add the contributions from the current row into the graph.
-      // - For example, if Element 0 contains nodes [0,1,4,5, ...] then we insert the nodes:
-      //   - node 0 inserts [0, 1, 4, 5, ...]
-      //   - node 1 inserts [0, 1, 4, 5, ...]
-      //   - node 4 inserts [0, 1, 4, 5, ...]
-      //   - node 5 inserts [0, 1, 4, 5, ...]
-      for(int nodeId=0; nodeId<basisCardinality; nodeId++)
+
+
+
+      DynRankViewGId ConstructWithLabel(elementGIDsKokkos, numOwnedElems, basisCardinality);
+
+      // fill graph
+      // for each element in the mesh...
+      Tpetra::beginFill(*feGraph);
+      for(int elemId=0; elemId<numOwnedElems; elemId++)
       {
-        feGraph->insertGlobalIndices(globalIdsInRow[nodeId], globalIdsInRow());
+        // Populate globalIdsInRow:
+        // - Copy the global node ids for current element into an array.
+        // - Since each element's contribution is a clique, we can re-use this for
+        //   each row associated with this element's contribution.
+        std::vector<global_ordinal_t> elementGIDs;
+        dofManager->getElementGIDs(elemId, elementGIDs);
+        for(int nodeId=0; nodeId<basisCardinality; nodeId++) {
+          globalIdsInRow[nodeId] = elementGIDs[elmtOffsetKokkos(nodeId)];
+          elementGIDsKokkos(elemId, nodeId) = globalIdsInRow[nodeId];
+        }
+
+        // Add the contributions from the current row into the graph.
+        // - For example, if Element 0 contains nodes [0,1,4,5, ...] then we insert the nodes:
+        //   - node 0 inserts [0, 1, 4, 5, ...]
+        //   - node 1 inserts [0, 1, 4, 5, ...]
+        //   - node 4 inserts [0, 1, 4, 5, ...]
+        //   - node 5 inserts [0, 1, 4, 5, ...]
+        for(int nodeId=0; nodeId<basisCardinality; nodeId++)
+        {
+          feGraph->insertGlobalIndices(globalIdsInRow[nodeId], globalIdsInRow());
+        }
       }
-    }
-    Tpetra::endFill(*feGraph);
+      Tpetra::endFill(*feGraph);
 
-    graphGenerationTimer = Teuchos::null;
+      graphGenerationTimer = Teuchos::null;
 
-    // ************************************ MATRIX ASSEMBLY **************************************
+      // ************************************ MATRIX ASSEMBLY **************************************
 
-    auto matrixAndRhsAllocationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Allocation of Matrix and Rhs")));
-   
-    auto A = Teuchos::rcp(new fe_matrix_t(feGraph));
-    auto b = Teuchos::rcp (new fe_multivector_t(domainMap, feGraph->getImporter(), 1));
 
-    matrixAndRhsAllocationTimer =  Teuchos::null;
+      auto matrixAndRhsAllocationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Allocation of Matrix and Rhs")));
 
-    auto matrixAndRhsFillTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Fill of Matrix and Rhs")));
-    Teuchos::Array<local_ordinal_t> columnLocalIds(basisCardinality);
-    Teuchos::Array<global_ordinal_t> bLocalIds(basisCardinality);
-    Teuchos::Array<scalar_t> columnScalarValues(basisCardinality);         // scalar values for each column
+      auto A = Teuchos::rcp(new fe_matrix_t(feGraph));
+      auto b = Teuchos::rcp (new fe_multivector_t(domainMap, feGraph->getImporter(), 1));
 
-    auto localColMap  = A->getColMap()->getLocalMap();
-    auto localMap  = ownedAndGhosted_map->getLocalMap();
-    auto localMatrix  = A->getLocalMatrix();
-    auto localRHS     = b->getLocalViewDevice();
+      matrixAndRhsAllocationTimer =  Teuchos::null;
 
-    //fill matrix
-    // Loop over elements
-    Tpetra::beginFill(*A,*b);
+      auto matrixAndRhsFillTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Fill of Matrix and Rhs")));
+      Teuchos::Array<local_ordinal_t> columnLocalIds(basisCardinality);
+      Teuchos::Array<global_ordinal_t> bLocalIds(basisCardinality);
+      Teuchos::Array<scalar_t> columnScalarValues(basisCardinality);         // scalar values for each column
 
-    std::vector<global_ordinal_t> elementGIDs(basisCardinality);
-    auto elementLIDs = globalIndexer->getLIDs();
-/*  //using serial for
+      auto localColMap  = A->getColMap()->getLocalMap();
+      auto localMap  = ownedAndGhosted_map->getLocalMap();
+      auto localMatrix  = A->getLocalMatrix();
+      auto localRHS     = b->getLocalViewDevice();
+
+      //fill matrix
+      // Loop over elements
+      Tpetra::beginFill(*A,*b);
+
+      std::vector<global_ordinal_t> elementGIDs(basisCardinality);
+      auto elementLIDs = globalIndexer->getLIDs();
+      /*  //using serial for
     for(int elemId=0; elemId<numOwnedElems; elemId++)
     {
       // Fill the global column ids array for this element
@@ -561,17 +640,19 @@ int feAssemblyHex(int argc, char *argv[]) {
     }
 /*/ //using parallel for
 
-    DynRankViewLId ConstructWithLabel(columnLIds, numOwnedElems, basisCardinality);
+      DynRankViewLId ConstructWithLabel(columnLIds, numOwnedElems, basisCardinality);
 
-    Kokkos::parallel_for
-      ("Assemble FE matrix and right-hand side",
-       Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems),
-       KOKKOS_LAMBDA (const size_t elemId) {
+      if(insertSingleEntry)
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems),
+            KOKKOS_LAMBDA (const size_t elemId) {
         // Get subviews
         auto elemRHS    = Kokkos::subview(elemsRHS,elemId, Kokkos::ALL());
         auto elemMat = Kokkos::subview(elemsMat,elemId, Kokkos::ALL(), Kokkos::ALL());
         auto elemColumnLIds  = Kokkos::subview(columnLIds,elemId, Kokkos::ALL());
-          
+
+
         for(int nodeId=0; nodeId<basisCardinality; nodeId++)
           elemColumnLIds(nodeId) = localColMap.getLocalElement(elementGIDsKokkos(elemId, nodeId));
 
@@ -581,18 +662,303 @@ int feAssemblyHex(int argc, char *argv[]) {
           //  localMap.getLocalElement (elementGIDsKokkos(elemId, nodeId));
 
           // Force atomics on sums
-          for (local_ordinal_t colId = 0; colId < basisCardinality; ++colId) 
+          for (local_ordinal_t colId = 0; colId < basisCardinality; ++colId)
             localMatrix.sumIntoValues (localRowId, &elemColumnLIds(colId), 1, &(elemMat(nodeId,colId)), true, true);
 
           Kokkos::atomic_add (&(localRHS(elemColumnLIds(nodeId),0)), elemRHS(nodeId));
         }
       });
-//*/
+      else if(basisCardinality <= 8) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),8>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
 
-    Tpetra::endFill(*A, *b);
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+      } else if(basisCardinality <= 16) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),16>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+      } else if(basisCardinality <= 32) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),32>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+      } else if (basisCardinality <= 64) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),64>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else if (basisCardinality <= 128) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),128>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else if (basisCardinality <= 256) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),256>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else if (basisCardinality <= 512) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),512>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else {
+        *outStream << "Basis Cardinality is too large, run with insert-single-entry option" <<std::endl;
+      }
+
+      //*/
+
+      Tpetra::endFill(*A, *b);
 
 
-    matrixAndRhsFillTimer =  Teuchos::null;
+      matrixAndRhsFillTimer =  Teuchos::null;
+      A_ = A;
+      b_ = b;
+    }
+    else {
+      // ************************************ GENERATE GRAPH **************************************
+      auto graphGenerationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Graph Generation")));
+      auto overlap_graph = Teuchos::rcp(new graph_t(ownedAndGhosted_map, 8*basisCardinality));
+      auto graph = createCrsGraph(rowMap);
+
+
+
+
+      DynRankViewGId ConstructWithLabel(elementGIDsKokkos, numOwnedElems, basisCardinality);
+
+      // fill graph
+      // for each element in the mesh...
+      for(int elemId=0; elemId<numOwnedElems; elemId++)
+      {
+        // Populate globalIdsInRow:
+        // - Copy the global node ids for current element into an array.
+        // - Since each element's contribution is a clique, we can re-use this for
+        //   each row associated with this element's contribution.
+        std::vector<global_ordinal_t> elementGIDs;
+        dofManager->getElementGIDs(elemId, elementGIDs);
+        for(int nodeId=0; nodeId<basisCardinality; nodeId++) {
+          globalIdsInRow[nodeId] = elementGIDs[elmtOffsetKokkos(nodeId)];
+          elementGIDsKokkos(elemId, nodeId) = globalIdsInRow[nodeId];
+        }
+
+        // Add the contributions from the current row into the graph.
+        // - For example, if Element 0 contains nodes [0,1,4,5, ...] then we insert the nodes:
+        //   - node 0 inserts [0, 1, 4, 5, ...]
+        //   - node 1 inserts [0, 1, 4, 5, ...]
+        //   - node 4 inserts [0, 1, 4, 5, ...]
+        //   - node 5 inserts [0, 1, 4, 5, ...]
+        for(int nodeId=0; nodeId<basisCardinality; nodeId++)
+        {
+          overlap_graph->insertGlobalIndices(globalIdsInRow[nodeId], globalIdsInRow());
+        }
+      }
+      overlap_graph->fillComplete(ownedAndGhosted_map,ownedAndGhosted_map);
+
+      Tpetra_Export exporter(ownedAndGhosted_map,rowMap);
+      graph->doExport(*overlap_graph,exporter,Tpetra::INSERT);
+      graph->fillComplete(rowMap,rowMap);
+
+      graphGenerationTimer = Teuchos::null;
+
+      // ************************************ MATRIX ASSEMBLY **************************************
+
+
+      auto matrixAndRhsAllocationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Allocation of Matrix and Rhs")));
+
+
+
+      auto A = Teuchos::rcp(new matrix_t(overlap_graph));
+      auto b = Teuchos::rcp (new multivector_t(ownedAndGhosted_map, 1));
+
+      matrixAndRhsAllocationTimer =  Teuchos::null;
+
+      auto matrixAndRhsFillTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Fill of Matrix and Rhs")));
+      Teuchos::Array<local_ordinal_t> columnLocalIds(basisCardinality);
+      Teuchos::Array<global_ordinal_t> bLocalIds(basisCardinality);
+      Teuchos::Array<scalar_t> columnScalarValues(basisCardinality);         // scalar values for each column
+
+      auto localColMap  = A->getColMap()->getLocalMap();
+      auto localMap  = ownedAndGhosted_map->getLocalMap();
+      auto localMatrix  = A->getLocalMatrix();
+      auto localRHS     = b->getLocalViewDevice();
+
+      //fill matrix
+      // Loop over elements
+
+      std::vector<global_ordinal_t> elementGIDs(basisCardinality);
+      auto elementLIDs = globalIndexer->getLIDs();
+
+      DynRankViewLId ConstructWithLabel(columnLIds, numOwnedElems, basisCardinality);
+
+      if(insertSingleEntry)
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems),
+            KOKKOS_LAMBDA (const size_t elemId) {
+        // Get subviews
+        auto elemRHS    = Kokkos::subview(elemsRHS,elemId, Kokkos::ALL());
+        auto elemMat = Kokkos::subview(elemsMat,elemId, Kokkos::ALL(), Kokkos::ALL());
+        auto elemColumnLIds  = Kokkos::subview(columnLIds,elemId, Kokkos::ALL());
+
+
+        for(int nodeId=0; nodeId<basisCardinality; nodeId++)
+          elemColumnLIds(nodeId) = elementLIDs(elemId,elmtOffsetKokkos(nodeId));
+
+        // For each node (row) on the current element
+        for (local_ordinal_t nodeId = 0; nodeId < basisCardinality; ++nodeId) {
+          const local_ordinal_t localRowId = elemColumnLIds(nodeId);
+          //  localMap.getLocalElement (elementGIDsKokkos(elemId, nodeId));
+
+          // Force atomics on sums
+          for (local_ordinal_t colId = 0; colId < basisCardinality; ++colId)
+            localMatrix.sumIntoValues (localRowId, &elemColumnLIds(colId), 1, &(elemMat(nodeId,colId)), true, true);
+
+          Kokkos::atomic_add (&(localRHS(elemColumnLIds(nodeId),0)), elemRHS(nodeId));
+        }
+      });
+      else if(basisCardinality <= 8) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),8>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+      } else if(basisCardinality <= 16) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),16>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+      } else if(basisCardinality <= 32) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),32>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+      } else if (basisCardinality <= 64) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),64>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else if (basisCardinality <= 128) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),128>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else if (basisCardinality <= 256) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),256>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else if (basisCardinality <= 512) {
+        Functor<decltype(elemsRHS), decltype(elemsMat), decltype(localColMap),
+            decltype(elementGIDsKokkos), decltype(elementLIDs), decltype(elmtOffsetKokkos),
+            decltype(localMatrix), decltype(localRHS),512>
+        functor(elemsRHS, elemsMat, localColMap,
+            elementGIDsKokkos, elementLIDs, elmtOffsetKokkos,
+            localMatrix, localRHS);
+
+        Kokkos::parallel_for
+        ("Assemble FE matrix and right-hand side",
+            Kokkos::RangePolicy<DeviceSpaceType, int> (0, numOwnedElems), functor);
+
+      } else {
+        *outStream << "Basis Cardinality is too large, run with insert-single-entry option" <<std::endl;
+      }
+
+      //*/
+      A_ = Teuchos::rcp(new matrix_t(graph));
+      b_ = Teuchos::rcp (new multivector_t(rowMap, 1));
+      A_->doExport(*A,exporter,Tpetra::ADD);
+      A_->fillComplete();
+      b_->doExport(*b,exporter,Tpetra::ADD);
+
+
+      matrixAndRhsFillTimer =  Teuchos::null;
+    }
+
 
 
     // ************************************ CODE VERIFICATION **************************************
@@ -603,9 +969,9 @@ int feAssemblyHex(int argc, char *argv[]) {
       Teuchos::TimeMonitor liTimer =  *Teuchos::TimeMonitor::getNewTimer("Verification, locally interpolate analytic solution");
       DynRankView ConstructWithLabel(dofCoordsOriented, numOwnedElems, basisCardinality, dim);
       DynRankView ConstructWithLabel(dofCoeffsPhys, numOwnedElems, basisCardinality);
-      
+
       li::getDofCoordsAndCoeffs(dofCoordsOriented,  dofCoeffsPhys, basis.getRawPtr(), Intrepid2::POINTTYPE_EQUISPACED, elemOrts);
- 
+
       DynRankView ConstructWithLabel(funAtDofPoints, numOwnedElems, basisCardinality);
       {
         DynRankView ConstructWithLabel(physDofPoints, numOwnedElems, basisCardinality, dim);
@@ -616,7 +982,7 @@ int feAssemblyHex(int argc, char *argv[]) {
         Kokkos::parallel_for("loop for evaluating the function at DoF points", numOwnedElems,functor);
         Kokkos::fence(); //make sure that funAtDofPoints has been evaluated
       }
-    
+
       li::getBasisCoeffs(basisCoeffsLI, funAtDofPoints, dofCoeffsPhys);
     }
 
@@ -625,6 +991,7 @@ int feAssemblyHex(int argc, char *argv[]) {
       vector_t x(domainMap); //solution
       auto basisCoeffsLIHost = Kokkos::create_mirror_view(basisCoeffsLI);
       Kokkos::deep_copy(basisCoeffsLIHost,basisCoeffsLI);
+      std::vector<global_ordinal_t> elementGIDs(basisCardinality);
       for(int elemId=0; elemId<numOwnedElems; elemId++)
       {
         dofManager->getElementGIDs(elemId, elementGIDs);
@@ -637,14 +1004,14 @@ int feAssemblyHex(int argc, char *argv[]) {
             x.replaceGlobalValue(gid, basisCoeffsLIHost(elemId, nodeId));
         }
       }
-     
+
       {
         Teuchos::TimeMonitor vTimer2 =  *Teuchos::TimeMonitor::getNewTimer("Verification,compute rhs (matrix-vector product)");
-        A->apply(x, *b, Teuchos::NO_TRANS, -1.0, 1.0);   // b - A x
+        A_->apply(x, *b_, Teuchos::NO_TRANS, -1.0, 1.0);   // b - A x
       }
     }
 
-    double res_l2_norm = b->getVector(0)->norm2();
+    double res_l2_norm = b_->getVector(0)->norm2();
     if((degree >= 4) && (res_l2_norm > 1e-11)) {
       errorFlag++;
       *outStream << std::setw(70) << "^^^^----FAILURE!" << "\n";
@@ -658,8 +1025,8 @@ int feAssemblyHex(int argc, char *argv[]) {
     *outStream << err.what() << "\n\n";
     errorFlag = -1000;
   }
- 
- 
+
+
   Teuchos::RCP<Teuchos::ParameterList> reportParams = parameterList(* (Teuchos::TimeMonitor::getValidReportParameters()));
   reportParams->set("Report format", "YAML");
   reportParams->set("YAML style", "spacious");
