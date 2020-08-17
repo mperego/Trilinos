@@ -222,6 +222,26 @@ namespace Intrepid2
       basis2_.getDofCoords(dofCoords2);
     }
     
+    /** \brief  Fills in coefficients of degrees of freedom on the reference cell
+        \param [out] dofCoeffs - the container into which to place the degrees of freedom.
+
+     dofCoeffs is a rank 1 with dimension equal to the cardinality of the basis.
+
+     Note that getDofCoeffs() is not supported by all bases; in particular, hierarchical bases do not generally support this.
+     */
+    virtual void getDofCoeffs( ScalarViewType dofCoeffs ) const override {
+      const int basisCardinality1 = basis1_.getCardinality();
+      const int basisCardinality2 = basis2_.getCardinality();
+      const int basisCardinality  = basisCardinality1 + basisCardinality2;
+
+      auto dofCoeffs1 = Kokkos::subview(dofCoeffs, std::make_pair(0,basisCardinality1), Kokkos::ALL());
+      auto dofCoeffs2 = Kokkos::subview(dofCoeffs, std::make_pair(basisCardinality1,basisCardinality), Kokkos::ALL());
+
+      basis1_.getDofCoeffs(dofCoeffs1);
+      basis2_.getDofCoeffs(dofCoeffs2);
+    }
+
+
     /** \brief  Returns basis name
      
      \return the name of the basis

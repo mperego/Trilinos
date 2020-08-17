@@ -553,6 +553,41 @@ namespace Intrepid2
                            });
     }
     
+
+    /** \brief  Fills in coefficients of degrees of freedom on the reference cell
+        \param [out] dofCoeffs - the container into which to place the degrees of freedom.
+
+     dofCoeffs is a rank 1 with dimension equal to the cardinality of the basis.
+
+     Note that getDofCoeffs() is not supported by all bases; in particular, hierarchical bases do not generally support this.
+     */
+    virtual void getDofCoeffs( typename BasisSuper::ScalarViewType dofCoeffs ) const override
+    {
+      using ValueType    = typename BasisSuper::ScalarViewType::value_type;
+      using ResultLayout = typename DeduceLayout< typename BasisSuper::ScalarViewType >::result_layout;
+      using DeviceType   = typename BasisSuper::ScalarViewType::device_type;
+      using ViewType     = Kokkos::DynRankView<ValueType, ResultLayout, DeviceType >;
+
+      ViewType dofCoeffs1("dofCoeffs1",basis1_.getCardinality());
+      ViewType dofCoeffs2("dofCoeffs2",basis2_.getCardinality());
+
+      basis1_.getDofCoeffs(dofCoeffs1);
+      basis2_.getDofCoeffs(dofCoeffs2);
+
+      const ordinal_type basisCardinality1 = basis1_.getCardinality();
+      const ordinal_type basisCardinality2 = basis2_.getCardinality();
+
+      Kokkos::parallel_for(basisCardinality2, KOKKOS_LAMBDA (const int fieldOrdinal2)
+     {
+       for (int fieldOrdinal1=0; fieldOrdinal1<basisCardinality1; fieldOrdinal1++)
+       {
+         const ordinal_type fieldOrdinal = fieldOrdinal1 + fieldOrdinal2 * basisCardinality1;
+         dofCoeffs(fieldOrdinal) = dofCoeffs1(fieldOrdinal1);
+         dofCoeffs(fieldOrdinal) = dofCoeffs2(fieldOrdinal2);
+       }
+     });
+    }
+
     /** \brief  Returns basis name
      
      \return the name of the basis
