@@ -75,11 +75,8 @@ public:
 
   Real value(const Vector<Real> &u, const Vector<Real> &z, Real &tol ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling applyAdjointJacobian_2
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::value" << std::endl;
@@ -91,7 +88,9 @@ public:
     }
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-    const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+    Ptr<Vector<Real>> unew = u.clone();
+    unew->set(u);
+    const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
     Teuchos::RCP< Thyra::VectorBase<Real> > g = Thyra::createMember<Real>(thyra_model.get_g_space(g_index));
     Teuchos::RCP<const Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
 
@@ -114,11 +113,8 @@ public:
 
   void gradient_1(Vector<Real> &g, const Vector<Real> &u, const Vector<Real> &z, Real &tol ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling gradient_1
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::gradient_1" << std::endl;
@@ -130,7 +126,9 @@ public:
     }
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-    const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+    Ptr<Vector<Real>> unew = u.clone();
+    unew->set(u);
+    const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
 
     Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
     ThyraVector<Real>  & thyra_dgdx = dynamic_cast<ThyraVector<Real>&>(g);
@@ -150,21 +148,20 @@ public:
       outArgs.set_g(g_index, thyra_g);
     }
 
-    for(std::size_t i=0; i<p_indices.size(); ++i) {
-      const Thyra::ModelEvaluatorBase::DerivativeSupport dgdx_support =
-          outArgs.supports(Thyra::ModelEvaluatorBase::OUT_ARG_DgDx, g_index);
-      Thyra::ModelEvaluatorBase::EDerivativeMultiVectorOrientation dgdx_orient;
-      if (dgdx_support.supports(Thyra::ModelEvaluatorBase::DERIV_MV_GRADIENT_FORM))
-        dgdx_orient = Thyra::ModelEvaluatorBase::DERIV_MV_GRADIENT_FORM;
-      else if(dgdx_support.supports(Thyra::ModelEvaluatorBase::DERIV_MV_JACOBIAN_FORM))
-        dgdx_orient = Thyra::ModelEvaluatorBase::DERIV_MV_JACOBIAN_FORM;
-      else {
-        ROL_TEST_FOR_EXCEPTION(true, std::logic_error,
-            "ROL::ThyraProductME_Objective: DgDx does support neither DERIV_MV_JACOBIAN_FORM nor DERIV_MV_GRADIENT_FORM forms");
-      }
-
-      outArgs.set_DgDx(g_index, Thyra::ModelEvaluatorBase::DerivativeMultiVector<Real>(thyra_dgdx.getVector(), dgdx_orient));
+    const Thyra::ModelEvaluatorBase::DerivativeSupport dgdx_support =
+        outArgs.supports(Thyra::ModelEvaluatorBase::OUT_ARG_DgDx, g_index);
+    Thyra::ModelEvaluatorBase::EDerivativeMultiVectorOrientation dgdx_orient;
+    if (dgdx_support.supports(Thyra::ModelEvaluatorBase::DERIV_MV_GRADIENT_FORM))
+      dgdx_orient = Thyra::ModelEvaluatorBase::DERIV_MV_GRADIENT_FORM;
+    else if(dgdx_support.supports(Thyra::ModelEvaluatorBase::DERIV_MV_JACOBIAN_FORM))
+      dgdx_orient = Thyra::ModelEvaluatorBase::DERIV_MV_JACOBIAN_FORM;
+    else {
+      ROL_TEST_FOR_EXCEPTION(true, std::logic_error,
+          "ROL::ThyraProductME_Objective: DgDx does support neither DERIV_MV_JACOBIAN_FORM nor DERIV_MV_GRADIENT_FORM forms");
     }
+
+    outArgs.set_DgDx(g_index, Thyra::ModelEvaluatorBase::DerivativeMultiVector<Real>(thyra_dgdx.getVector(), dgdx_orient));
+
     thyra_model.evalModel(inArgs, outArgs);
 
     if(computeValue) {
@@ -183,11 +180,8 @@ public:
 
   void gradient_2(Vector<Real> &g, const Vector<Real> &u, const Vector<Real> &z, Real &tol ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling gradient_2
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::gradient_2" << std::endl;
@@ -200,7 +194,9 @@ public:
     }
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-    const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+    Ptr<Vector<Real>> unew = u.clone();
+    unew->set(u);
+    const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
 
     Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
     ThyraVector<Real>  & thyra_dgdp = dynamic_cast<ThyraVector<Real>&>(g);
@@ -258,11 +254,8 @@ public:
   void hessVec_11( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u,  const Vector<Real> &z, Real &/*tol*/ ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling this function
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_11" << std::endl;
@@ -273,7 +266,9 @@ public:
     if(supports_deriv) { //use derivatives computed by model evaluator
 
       const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+      Ptr<Vector<Real>> unew = u.clone();
+      unew->set(u);
+      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
       const ThyraVector<Real>  & thyra_v = dynamic_cast<const ThyraVector<Real>&>(v);
 
       Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
@@ -319,17 +314,15 @@ public:
       // Compute Newton quotient
       hv.axpy(-1.0,*g);
       hv.scale(0.5/h);
+      this->update(u,z);
     }
   }
 
   void hessVec_12( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u, const Vector<Real> &z, Real &/*tol*/ ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling this function
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_12" << std::endl;
@@ -341,7 +334,9 @@ public:
 
     if(supports_deriv) { //use derivatives computed by model evaluator
       const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+      Ptr<Vector<Real>> unew = u.clone();
+      unew->set(u);
+      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
       const ThyraVector<Real>  & thyra_v = dynamic_cast<const ThyraVector<Real>&>(v);
 
       Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
@@ -400,17 +395,15 @@ public:
       // Compute Newton quotient
       hv.axpy(-1.0,*g);
       hv.scale(0.5/h);
+      this->update(u,z);
     }
   }
 
   void hessVec_21( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u, const Vector<Real> &z, Real &/*tol*/ ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling this function
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_21" << std::endl;
@@ -425,7 +418,9 @@ public:
 
     if(supports_deriv) { //use derivatives computed by model evaluator
       const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+      Ptr<Vector<Real>> unew = u.clone();
+      unew->set(u);
+      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
       const ThyraVector<Real>  & thyra_v = dynamic_cast<const ThyraVector<Real>&>(v);
 
       Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
@@ -477,17 +472,15 @@ public:
       // Compute Newton quotient
       hv.axpy(-1.0,*g);
       hv.scale(0.5/h);
+      this->update(u,z);
     }
   }
 
   void hessVec_22( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u,  const Vector<Real> &z, Real &/*tol*/ ) {
 
-#ifdef  HAVE_ROL_DEBUG
-    //u and z should be updated in the update functions before calling this function
-    TEUCHOS_ASSERT(!u_hasChanged(u));
-    TEUCHOS_ASSERT(!z_hasChanged(z));
-#endif
+    if( u_hasChanged(u) || z_hasChanged(z))
+      this->update(u,z);
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_22" << std::endl;
@@ -500,7 +493,9 @@ public:
 
     if(supports_deriv) { //use derivatives computed by model evaluator
       const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
-      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
+      Ptr<Vector<Real>> unew = u.clone();
+      unew->set(u);
+      const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(*unew);
       const ThyraVector<Real>  & thyra_v = dynamic_cast<const ThyraVector<Real>&>(v);
 
       Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
@@ -567,6 +562,7 @@ public:
       // Compute Newton quotient
       hv.axpy(-1.0,*g);
       hv.scale(0.5/h);
+      this->update(u,z);
     }
   }
 
