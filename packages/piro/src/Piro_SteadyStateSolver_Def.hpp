@@ -833,34 +833,16 @@ void Piro::SteadyStateSolver<Scalar>::evalConvergedModelResponsesAndSensitivitie
       model_->evalModel(in_args, out_args);
     }
 
-    bool explicitlyTransposMatrix = false;
-    if(params != Teuchos::null) {
-      explicitlyTransposMatrix = params->get("Enable Explicit Matrix Transpose", false);
-      if(explicitlyTransposMatrix)
-        params->set("Compute Transposed Jacobian", true);
-    }
+    if(Teuchos::nonnull(prec))
+      Thyra::initializePreconditionedOp<double>(*lows_factory,
+          Thyra::transpose<double>(lop),
+          Thyra::unspecifiedPrec<double>(::Thyra::transpose<double>(prec->getUnspecifiedPrecOp())),
+          jacobian.ptr());
+    else
+      Thyra::initializeOp<double>(*lows_factory,
+          Thyra::transpose<double>(lop),
+          jacobian.ptr());
 
-    if(Teuchos::nonnull(prec)) {
-      if(explicitlyTransposMatrix) {
-        Thyra::initializePreconditionedOp<double>(*lows_factory,
-            lop,
-            prec,
-            jacobian.ptr());
-      } else {
-        Thyra::initializePreconditionedOp<double>(*lows_factory,
-            Thyra::transpose<double>(lop),
-            Thyra::unspecifiedPrec<double>(::Thyra::transpose<double>(prec->getUnspecifiedPrecOp())),
-            jacobian.ptr());
-      }
-    }
-    else {
-      if(explicitlyTransposMatrix)
-        Thyra::initializeOp<double>(*lows_factory, lop, jacobian.ptr());
-      else
-        Thyra::initializeOp<double>(*lows_factory,
-            Thyra::transpose<double>(lop),
-            jacobian.ptr());
-    }
 
     for (int j=0; j<num_g_; j++) {
 
