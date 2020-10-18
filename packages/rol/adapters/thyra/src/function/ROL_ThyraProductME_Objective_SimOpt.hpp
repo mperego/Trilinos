@@ -75,8 +75,11 @@ public:
 
   Real value(const Vector<Real> &u, const Vector<Real> &z, Real &tol ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyAdjointJacobian_2
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::value" << std::endl;
@@ -113,8 +116,11 @@ public:
 
   void gradient_1(Vector<Real> &g, const Vector<Real> &u, const Vector<Real> &z, Real &tol ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling gradient_1
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::gradient_1" << std::endl;
@@ -180,8 +186,11 @@ public:
 
   void gradient_2(Vector<Real> &g, const Vector<Real> &u, const Vector<Real> &z, Real &tol ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling gradient_2
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::gradient_2" << std::endl;
@@ -254,8 +263,11 @@ public:
   void hessVec_11( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u,  const Vector<Real> &z, Real &/*tol*/ ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_11" << std::endl;
@@ -321,8 +333,11 @@ public:
   void hessVec_12( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u, const Vector<Real> &z, Real &/*tol*/ ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_12" << std::endl;
@@ -402,8 +417,11 @@ public:
   void hessVec_21( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u, const Vector<Real> &z, Real &/*tol*/ ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_21" << std::endl;
@@ -479,8 +497,11 @@ public:
   void hessVec_22( Vector<Real> &hv, const Vector<Real> &v,
       const Vector<Real> &u,  const Vector<Real> &z, Real &/*tol*/ ) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Objective_SimOpt::hessVec_22" << std::endl;

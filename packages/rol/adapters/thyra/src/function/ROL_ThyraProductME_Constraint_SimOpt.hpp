@@ -89,9 +89,11 @@ public:
   }
 
   void value(Vector<Real> &c, const Vector<Real> &u, const Vector<Real> &z, Real &tol) {
-
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling value
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::value" << std::endl;
@@ -159,8 +161,11 @@ public:
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyJacobian_1" << std::endl;
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyJacobian_1
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(computeJacobian1) {
       // Create Jacobian
@@ -201,8 +206,11 @@ public:
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyJacobian_2" << std::endl;
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyJacobian_1
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
     const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
@@ -345,8 +353,11 @@ public:
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyInverseJacobian_1" << std::endl;
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyJacobian_2
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
     const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
@@ -430,8 +441,11 @@ public:
   void applyAdjointJacobian_1(Vector<Real> &ajv, const Vector<Real> &v, const Vector<Real> &u,
       const Vector<Real> &z, Real &tol) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyAdjointJacobian_1
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyAdjointJacobian_1" << std::endl;
@@ -485,8 +499,11 @@ public:
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyInverseAdjointJacobian_1" << std::endl;
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyInverseAdjointJacobian_1
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
     const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
@@ -571,8 +588,11 @@ public:
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyAdjointJacobian_2" << std::endl;
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling applyAdjointJacobian_2
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     const ThyraVector<Real>  & thyra_p = dynamic_cast<const ThyraVector<Real>&>(z);
     const ThyraVector<Real>  & thyra_x = dynamic_cast<const ThyraVector<Real>&>(u);
@@ -765,8 +785,11 @@ public:
       const Vector<Real> &z,
       Real &tol) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyAdjointHessian_11" << std::endl;
@@ -834,8 +857,11 @@ public:
       const Vector<Real> &z,
       Real &/*tol*/) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyAdjointHessian_12" << std::endl;
@@ -911,8 +937,11 @@ public:
       const Vector<Real> &z,
       Real &/*tol*/) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyAdjointHessian_21" << std::endl;
@@ -995,8 +1024,11 @@ public:
       const Vector<Real> &z,
       Real &/*tol*/) {
 
-    if( u_hasChanged(u) || z_hasChanged(z))
-      this->update(u,z);
+#ifdef  HAVE_ROL_DEBUG
+    //u and z should be updated in the update functions before calling this function
+    TEUCHOS_ASSERT(!u_hasChanged(u));
+    TEUCHOS_ASSERT(!z_hasChanged(z));
+#endif
 
     if(verbosityLevel >= Teuchos::VERB_MEDIUM)
       *out << "ROL::ThyraProductME_Constraint_SimOpt::applyAdjointHessian_22" << std::endl;

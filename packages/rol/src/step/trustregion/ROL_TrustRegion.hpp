@@ -298,6 +298,7 @@ public:
         else {
           gs = g.dot(s.dual());
         }
+        model.getObjective()->update(*model.getIterate());
         Real modelVal = model.value(s,tol);
         modelVal += fold1;
         Real theta = (one-eta2_)*gs/((one-eta2_)*(fold1+gs)+eta2_*modelVal-fnew);
@@ -319,6 +320,7 @@ public:
         // Compute new gradient
         xtmp_->set(x); xtmp_->plus(s);
         bnd.project(*xtmp_);
+        obj.update(*xtmp_);
         obj.gradient(*dual_,*xtmp_,tol); // MUST DO SOMETHING HERE WITH TOL
         ngrad++;
         // Compute smoothed step
