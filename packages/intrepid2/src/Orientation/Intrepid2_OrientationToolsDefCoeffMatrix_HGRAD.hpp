@@ -168,8 +168,8 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree(), 1, POINTTYPE_WARPBLEND);
 
   // map the points into the parent, cell accounting for orientation
-  typename Intrepid2::CellTools<host_device_type>::subcellParamViewType subcellParam;
-  Intrepid2::CellTools<host_device_type>::getSubcellParametrization(subcellParam, subcellDim, cellTopo);
+  Intrepid2::Impl::CellTools<host_device_type>::setSubcellParametrization();
+  const auto subcellParam = Intrepid2::Impl::CellTools<host_device_type>::getSubcellParametrization(subcellDim, cellTopo.getKey());
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
   mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);

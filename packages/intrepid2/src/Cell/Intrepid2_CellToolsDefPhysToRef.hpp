@@ -63,12 +63,12 @@ namespace Intrepid2 {
   //                                                                                            //          
   //============================================================================================//   
 
-  template<typename SpT>
+  template<typename DeviceType>
   template<typename refPointValueType,    class ...refPointProperties,
            typename physPointValueType,   class ...physPointProperties,
            typename worksetCellValueType, class ...worksetCellProperties>
   void
-  CellTools<SpT>::
+  CellTools<DeviceType>::
   mapToReferenceFrame(       Kokkos::DynRankView<refPointValueType,refPointProperties...>       refPoints,
                        const Kokkos::DynRankView<physPointValueType,physPointProperties...>     physPoints,
                        const Kokkos::DynRankView<worksetCellValueType,worksetCellProperties...> worksetCell,
@@ -76,14 +76,13 @@ namespace Intrepid2 {
 #ifdef HAVE_INTREPID2_DEBUG
     CellTools_mapToReferenceFrameArgs(refPoints, physPoints, worksetCell, cellTopo);
 #endif  
-    typedef RealSpaceTools<SpT> rst;
-    typedef Kokkos::DynRankView<typename ScalarTraits<refPointValueType>::scalar_type,SpT> refPointViewSpType;
+    typedef RealSpaceTools<DeviceType> rst;
+    typedef Kokkos::DynRankView<typename ScalarTraits<refPointValueType>::scalar_type,DeviceType> refPointViewSpType;
 
     const auto spaceDim  = cellTopo.getDimension();
     refPointViewSpType 
-      cellCenter("CellTools::mapToReferenceFrame::cellCenter", spaceDim), 
-      cellVertex("CellTools::mapToReferenceFrame::cellCenter", spaceDim);
-    getReferenceCellCenter(cellCenter, cellVertex, cellTopo);
+      cellCenter("CellTools::mapToReferenceFrame::cellCenter", spaceDim);
+    getReferenceCellCenter(cellCenter, cellTopo);
 
     // Default: map (C,P,D) array of physical pt. sets to (C,P,D) array. Requires (C,P,D) initial guess.
     const auto numCells = worksetCell.extent(0);
@@ -102,14 +101,14 @@ namespace Intrepid2 {
   }
   
 
-  template<typename SpT>
+  template<typename DeviceType>
   template<typename refPointValueType,    class ...refPointProperties,
            typename initGuessValueType,   class ...initGuessProperties,
            typename physPointValueType,   class ...physPointProperties,
            typename worksetCellValueType, class ...worksetCellProperties,
            typename HGradBasisPtrType>
   void
-  CellTools<SpT>::
+  CellTools<DeviceType>::
   mapToReferenceFrameInitGuess(       Kokkos::DynRankView<refPointValueType,refPointProperties...>       refPoints,
                                 const Kokkos::DynRankView<initGuessValueType,initGuessProperties...>     initGuess,
                                 const Kokkos::DynRankView<physPointValueType,physPointProperties...>     physPoints,
@@ -128,7 +127,7 @@ namespace Intrepid2 {
     const auto numCells = worksetCell.extent(0);
     const auto numPoints = physPoints.extent(1);
 
-    typedef RealSpaceTools<SpT> rst;
+    typedef RealSpaceTools<DeviceType> rst;
     const auto tol = tolerence();
 
     using result_layout = typename DeduceLayout< decltype(refPoints) >::result_layout;
@@ -149,7 +148,7 @@ namespace Intrepid2 {
     viewTypeJ jacobian(Kokkos::view_alloc("CellTools::mapToReferenceFrameInitGuess::jacobian", vcpropJ), numCells, numPoints, spaceDim, spaceDim);
     viewTypeJ jacobianInv(Kokkos::view_alloc("CellTools::mapToReferenceFrameInitGuess::jacobianInv", vcpropJ), numCells, numPoints, spaceDim, spaceDim);
     
-    typedef Kokkos::DynRankView<typename ScalarTraits<refPointValueType>::scalar_type,SpT> errorViewType;
+    typedef Kokkos::DynRankView<typename ScalarTraits<refPointValueType>::scalar_type,DeviceType> errorViewType;
     errorViewType
       xScalarTmp    ("CellTools::mapToReferenceFrameInitGuess::xScalarTmp",     numCells, numPoints, spaceDim),
       errorPointwise("CellTools::mapToReferenceFrameInitGuess::errorPointwise", numCells, numPoints),
