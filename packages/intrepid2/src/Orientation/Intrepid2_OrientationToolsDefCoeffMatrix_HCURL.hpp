@@ -255,8 +255,8 @@ getCoeffMatrix_HCURL(OutputViewType &output,
   // Basis evaluation on the reference points
   //
 
-  Intrepid2::Impl::CellTools<host_device_type>::setSubcellParametrization();
-  const auto subcellParam = Intrepid2::Impl::CellTools<host_device_type>::getSubcellParametrization(subcellDim, cellTopo.getKey());
+  Intrepid2::Impl::RefCellParametrization<host_device_type>::setSubcellParametrization();
+  const auto subcellParam = Intrepid2::Impl::RefCellParametrization<host_device_type>::getSubcellParametrization(subcellDim, cellTopo.getKey());
 
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);

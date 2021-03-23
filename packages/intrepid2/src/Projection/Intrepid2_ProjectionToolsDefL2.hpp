@@ -346,15 +346,15 @@ ProjectionTools<SpT>::getL2EvaluationPoints(typename BasisType::ScalarViewType e
   ordinal_type numFaces = (cellBasis->getDofCount(faceDim, 0) > 0) ? cellTopo.getFaceCount() : 0;
   ordinal_type numVols = (cellBasis->getDofCount(dim, 0) > 0);
 
-  Impl::CellTools<SpT>::setSubcellParametrization();
+  Impl::RefCellParametrization<SpT>::setSubcellParametrization();
 
   auto ePointsRange  = Kokkos::create_mirror_view_and_copy(typename SpT::memory_space(),projStruct->getPointsRange(ePointType));
 
-  typename Impl::CellTools<SpT>::subcellParamViewConstType subcellParamEdge,  subcellParamFace;
+  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType subcellParamEdge,  subcellParamFace;
   if(numEdges>0)
-    subcellParamEdge = Impl::CellTools<SpT>::getSubcellParametrization(edgeDim, cellTopo.getKey());
+    subcellParamEdge = Impl::RefCellParametrization<SpT>::getSubcellParametrization(edgeDim, cellTopo.getKey());
   if(numFaces>0)
-    subcellParamFace = Impl::CellTools<SpT>::getSubcellParametrization(faceDim, cellTopo.getKey());
+    subcellParamFace = Impl::RefCellParametrization<SpT>::getSubcellParametrization(faceDim, cellTopo.getKey());
 
   auto refTopologyKey =  Kokkos::create_mirror_view_and_copy(typename SpT::memory_space(),projStruct->getTopologyKey());
 
@@ -590,10 +590,10 @@ ProjectionTools<SpT>::getL2BasisCoeffs(Kokkos::DynRankView<basisCoeffsValueType,
     edgeSystem.solve(basisCoeffs, edgeMassMat_, edgeRhsMat_, t_, w_, edgeDof, edgeCardinality);
   }
 
-  Impl::CellTools<SpT>::setSubcellParametrization();
-  typename Impl::CellTools<SpT>::subcellParamViewConstType  subcellParamFace;
+  Impl::RefCellParametrization<SpT>::setSubcellParametrization();
+  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType  subcellParamFace;
   if(numFaces>0)
-    subcellParamFace = Impl::CellTools<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
+    subcellParamFace = Impl::RefCellParametrization<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
 
   ScalarViewType faceCoeff("faceCoeff", numCells, fieldDim, faceDofDim);
   for(ordinal_type iface=0; iface<numFaces; ++iface) {

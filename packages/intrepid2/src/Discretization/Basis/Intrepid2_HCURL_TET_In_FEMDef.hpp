@@ -364,8 +364,6 @@ Basis_HCURL_TET_In_FEM( const ordinal_type order,
 
   Kokkos::DynRankView<scalarType,typename DT::execution_space::array_layout,Kokkos::HostSpace> edgeTan("Hcurl::Tet::In::edgeTan", spaceDim );
 
-  Impl::CellTools<Kokkos::HostSpace::execution_space>::setSubcellParametrization();
-
   // these are tangents scaled by the appropriate edge lengths.
   for (ordinal_type i=0;i<numEdges;i++) {  // loop over edges
     CellTools<Kokkos::HostSpace::execution_space>::getReferenceEdgeTangent( edgeTan ,

@@ -83,7 +83,7 @@
 //#include "Intrepid2_HGRAD_WEDGE_I2_FEM.hpp"
 
 #include "Intrepid2_Data.hpp"
-#include "Intrepid2_CellTools_Serial.hpp"
+#include "Intrepid2_CellData.hpp"
 
 namespace Intrepid2 {
 
@@ -107,8 +107,8 @@ namespace Intrepid2 {
   template<typename DeviceType>
   class CellTools {
     using ExecSpaceType = typename DeviceType::execution_space;
-    using subcellParamViewType = typename Impl::CellTools<DeviceType>::subcellParamViewType;
-    using subcellParamViewConstType = typename Impl::CellTools<DeviceType>::subcellParamViewConstType;
+    using subcellParamViewType = typename Impl::RefCellParametrization<DeviceType>::subcellParamViewType;
+    using subcellParamViewConstType = typename Impl::RefCellParametrization<DeviceType>::subcellParamViewConstType;
   public:
 
     /** \brief  Checks if a cell topology has reference cell
@@ -118,7 +118,7 @@ namespace Intrepid2 {
     inline
     static bool
     hasReferenceCell( const shards::CellTopology cellTopo ) {
-      return Impl::CellTools<DeviceType>::hasReferenceCell(cellTopo.getKey());
+      return Impl::RefCellParametrization<DeviceType>::hasReferenceParametrization(cellTopo.getKey());
     }
 
   private:

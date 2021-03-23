@@ -297,7 +297,6 @@ Basis_HDIV_TRI_In_FEM( const ordinal_type order,
   Kokkos::DynRankView<scalarType,typename DT::execution_space::array_layout,Kokkos::HostSpace> edgeNormal("Hcurl::Tri::In::edgeNormal", spaceDim );
 
   // these are normal scaled by the appropriate edge lengths.
-  Impl::CellTools<Kokkos::HostSpace>::setSubcellParametrization();
   for (ordinal_type edge=0;edge<numEdges;edge++) {  // loop over edges
     CellTools<Kokkos::HostSpace>::getReferenceSideNormal( edgeNormal ,
         edge ,

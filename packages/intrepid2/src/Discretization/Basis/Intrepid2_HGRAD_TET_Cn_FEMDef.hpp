@@ -309,7 +309,6 @@ Basis_HGRAD_TET_Cn_FEM( const ordinal_type order,
 
 
   // these are tangents scaled by the appropriate edge lengths.
-  Impl::CellTools<Kokkos::HostSpace>::setSubcellParametrization();
   for (ordinal_type i=0;i<numEdges;i++) {  // loop over edges
     CellTools<Kokkos::HostSpace>::mapToReferenceSubcell( edgePts ,
         linePts ,

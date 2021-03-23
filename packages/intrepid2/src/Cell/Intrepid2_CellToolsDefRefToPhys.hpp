@@ -282,10 +282,10 @@ namespace Intrepid2 {
 #endif
 
     using inputDeviceType = typename decltype(paramPoints)::device_type;
-    Impl::CellTools<inputDeviceType>::setSubcellParametrization();
+    Impl::RefCellParametrization<inputDeviceType>::setSubcellParametrization();
     
     // Get the subcell map, i.e., the coefficients of the parametrization function for the subcell
-    const auto subcellMap = Impl::CellTools<inputDeviceType>::getSubcellParametrization( subcellDim,
+    const auto subcellMap = Impl::RefCellParametrization<inputDeviceType>::getSubcellParametrization( subcellDim,
                                                        parentCell.getKey() );
     
     const ordinal_type numPts  = paramPoints.extent(0);

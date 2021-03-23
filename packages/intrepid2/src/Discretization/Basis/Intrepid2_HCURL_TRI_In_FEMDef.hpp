@@ -299,8 +299,6 @@ namespace Intrepid2 {
     Kokkos::DynRankView<scalarType,typename DT::execution_space::array_layout,Kokkos::HostSpace> phisAtEdgePoints("Hcurl::Tri::In::phisAtEdgePoints", cardPn , numPtsPerEdge );
     Kokkos::DynRankView<scalarType,typename DT::execution_space::array_layout,Kokkos::HostSpace> edgeTan("Hcurl::Tri::In::edgeTan", spaceDim );
 
-    Impl::CellTools<Kokkos::HostSpace>::setSubcellParametrization();
-
     // these are tangents scaled by the appropriate edge lengths.
     for (ordinal_type edge=0;edge<numEdges;edge++) {  // loop over edges
       CellTools<Kokkos::HostSpace>::getReferenceEdgeTangent( edgeTan ,

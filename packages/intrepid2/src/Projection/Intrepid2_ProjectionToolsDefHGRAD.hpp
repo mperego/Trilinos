@@ -336,12 +336,12 @@ ProjectionTools<SpT>::getHGradEvaluationPoints(typename BasisType::ScalarViewTyp
   ordinal_type numEdges = (cellBasis->getDofCount(1, 0) > 0) ? cellTopo.getEdgeCount() : 0;
   ordinal_type numFaces = (cellBasis->getDofCount(2, 0) > 0) ? cellTopo.getFaceCount() : 0;
 
-  Impl::CellTools<SpT>::setSubcellParametrization();
-  typename Impl::CellTools<SpT>::subcellParamViewConstType subcellParamEdge,  subcellParamFace;
+  Impl::RefCellParametrization<SpT>::setSubcellParametrization();
+  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType subcellParamEdge,  subcellParamFace;
   if(numEdges>0)
-    subcellParamEdge = Impl::CellTools<SpT>::getSubcellParametrization(edgeDim, cellBasis->getBaseCellTopology().getKey());
+    subcellParamEdge = Impl::RefCellParametrization<SpT>::getSubcellParametrization(edgeDim, cellBasis->getBaseCellTopology().getKey());
   if(numFaces>0)
-    subcellParamFace = Impl::CellTools<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
+    subcellParamFace = Impl::RefCellParametrization<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
 
   auto refTopologyKey =  Kokkos::create_mirror_view_and_copy(typename SpT::memory_space(),projStruct->getTopologyKey());
 
@@ -501,10 +501,10 @@ ProjectionTools<SpT>::getHGradBasisCoeffs(BasisCoeffsViewType basisCoeffs,
 
   auto tagToOrdinal = Kokkos::create_mirror_view_and_copy(typename SpT::memory_space(), cellBasis->getAllDofOrdinal());
 
-  Impl::CellTools<SpT>::setSubcellParametrization();
-  typename Impl::CellTools<SpT>::subcellParamViewConstType  subcellParamFace;
+  Impl::RefCellParametrization<SpT>::setSubcellParametrization();
+  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType  subcellParamFace;
   if(numFaces>0)
-    subcellParamFace = Impl::CellTools<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
+    subcellParamFace = Impl::RefCellParametrization<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
 
   ordinal_type computedDofsCount = 0;
   for(ordinal_type iv=0; iv<numVertices; ++iv)

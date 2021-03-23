@@ -63,136 +63,6 @@ namespace Intrepid2 {
   //============================================================================================//   
 
   template<typename DeviceType>
-  void 
-  Impl::CellTools<DeviceType>::
-  setReferenceNodeData() {
-
-    auto createDataViewFromHostArray = [](const std::string& view_name, double const * source_array, ordinal_type dim){
-      referenceNodeDataViewType dest_view(view_name, dim, 3);
-      auto host_view = Kokkos::create_mirror_view(dest_view);
-      for(ordinal_type i=0; i<dim; ++i)
-        for(ordinal_type j=0; j<3; ++j)
-          host_view(i,j) = source_array[3*i+j];
-      Kokkos::deep_copy(dest_view,host_view);
-      return dest_view;
-    };
-
-    if(isReferenceNodeDataSet_) return;
-    {
-      // create memory on devices
-      refNodeData_.line            = createDataViewFromHostArray("CellTools::ReferenceNodeData::line", &refNodeDataStatic_.line[0][0], 2);
-      refNodeData_.line_3          = createDataViewFromHostArray("CellTools::ReferenceNodeData::line_3", &refNodeDataStatic_.line_3[0][0], 3);
-      
-      refNodeData_.triangle        = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle", &refNodeDataStatic_.triangle[0][0], 3);
-      refNodeData_.triangle_4      = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle_4", &refNodeDataStatic_.triangle_4[0][0], 4);
-      refNodeData_.triangle_6      = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle_6", &refNodeDataStatic_.triangle_6[0][0], 6);
-      
-      refNodeData_.quadrilateral   = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad", &refNodeDataStatic_.quadrilateral[0][0], 4);
-      refNodeData_.quadrilateral_8 = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad_8", &refNodeDataStatic_.quadrilateral_8[0][0], 8);
-      refNodeData_.quadrilateral_9 = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad_9", &refNodeDataStatic_.quadrilateral_9[0][0], 9);
-      
-      refNodeData_.tetrahedron     = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet", &refNodeDataStatic_.tetrahedron[0][0], 4);
-      refNodeData_.tetrahedron_8   = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_8", &refNodeDataStatic_.tetrahedron_8[0][0], 8);
-      refNodeData_.tetrahedron_10  = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_10", &refNodeDataStatic_.tetrahedron_10[0][0], 10);
-      refNodeData_.tetrahedron_11  = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_11", &refNodeDataStatic_.tetrahedron_11[0][0], 11);
-      
-      refNodeData_.hexahedron      = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex", &refNodeDataStatic_.hexahedron[0][0], 8);
-      refNodeData_.hexahedron_20   = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex_20", &refNodeDataStatic_.hexahedron_20[0][0], 20);
-      refNodeData_.hexahedron_27   = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex_27", &refNodeDataStatic_.hexahedron_27[0][0], 27);
-      
-      refNodeData_.pyramid         = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr", &refNodeDataStatic_.pyramid[0][0], 5);
-      refNodeData_.pyramid_13      = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr_13", &refNodeDataStatic_.pyramid_13[0][0], 13);
-      refNodeData_.pyramid_14      = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr_14", &refNodeDataStatic_.pyramid_14[0][0], 14);
-      
-      refNodeData_.wedge           = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge", &refNodeDataStatic_.wedge[0][0], 6);
-      refNodeData_.wedge_15        = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge_15", &refNodeDataStatic_.wedge_15[0][0], 15);
-      refNodeData_.wedge_18        = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge_18", &refNodeDataStatic_.wedge_18[0][0], 18);
-    }
-
-    Kokkos::push_finalize_hook( [=] {
-
-      refNodeData_.line            = referenceNodeDataViewType();
-      refNodeData_.line_3          = referenceNodeDataViewType();
-
-      refNodeData_.triangle        = referenceNodeDataViewType();
-      refNodeData_.triangle_4      = referenceNodeDataViewType();
-      refNodeData_.triangle_6      = referenceNodeDataViewType();
-
-      refNodeData_.quadrilateral   = referenceNodeDataViewType();
-      refNodeData_.quadrilateral_8 = referenceNodeDataViewType();
-      refNodeData_.quadrilateral_9 = referenceNodeDataViewType();
-
-      refNodeData_.tetrahedron     = referenceNodeDataViewType();
-      refNodeData_.tetrahedron_8   = referenceNodeDataViewType();
-      refNodeData_.tetrahedron_10  = referenceNodeDataViewType();
-      refNodeData_.tetrahedron_11  = referenceNodeDataViewType();
-
-      refNodeData_.hexahedron      = referenceNodeDataViewType();
-      refNodeData_.hexahedron_20   = referenceNodeDataViewType();
-      refNodeData_.hexahedron_27   = referenceNodeDataViewType();
-
-      refNodeData_.pyramid         = referenceNodeDataViewType();
-      refNodeData_.pyramid_13      = referenceNodeDataViewType();
-      refNodeData_.pyramid_14      = referenceNodeDataViewType();
-
-      refNodeData_.wedge           = referenceNodeDataViewType();
-      refNodeData_.wedge_15        = referenceNodeDataViewType();
-      refNodeData_.wedge_18        = referenceNodeDataViewType();
-    } );
-
-    isReferenceNodeDataSet_ = true;
-  }
-
-  template<typename DeviceType>
-  void
-  Impl::CellTools<DeviceType>::
-  setReferenceCellCenterData() {
-
-    auto createDataViewFromHostArray = [](const std::string& view_name, double const * source_array){
-      referenceNodeDataViewType dest_view(view_name, 3);
-      Kokkos::deep_copy(dest_view, referenceNodeDataConstViewHostType(source_array, 3));
-      return dest_view;
-    };
-
-    if(isReferenceCellCenterDataSet_) return;
-    {
-      // create memory on devices
-      refCenterData_.line            = createDataViewFromHostArray("CellTools::ReferenceCenterData::line", &refCenterDataStatic_.line[0]);
-
-      refCenterData_.triangle        = createDataViewFromHostArray("CellTools::ReferenceCenterData::triangle", &refCenterDataStatic_.triangle[0]);
-
-      refCenterData_.quadrilateral   = createDataViewFromHostArray("CellTools::ReferenceCenterData::quad", &refCenterDataStatic_.quadrilateral[0]);
-
-      refCenterData_.tetrahedron     = createDataViewFromHostArray("CellTools::ReferenceCenterData::tet", &refCenterDataStatic_.tetrahedron[0]);
-
-      refCenterData_.hexahedron      = createDataViewFromHostArray("CellTools::ReferenceCenterData::hex", &refCenterDataStatic_.hexahedron[0]);
-
-      refCenterData_.pyramid         = createDataViewFromHostArray("CellTools::ReferenceCenterData::pyr", &refCenterDataStatic_.pyramid[0]);
-
-      refCenterData_.wedge           = createDataViewFromHostArray("CellTools::ReferenceCenterData::wedge", &refCenterDataStatic_.wedge[0]);
-     }
-
-    Kokkos::push_finalize_hook( [=] {
-
-      refCenterData_.line            = referenceNodeDataViewType();
-
-      refCenterData_.triangle        = referenceNodeDataViewType();
-
-      refCenterData_.quadrilateral   = referenceNodeDataViewType();
-
-      refCenterData_.tetrahedron     = referenceNodeDataViewType();
-
-      refCenterData_.hexahedron      = referenceNodeDataViewType();
-
-      refCenterData_.pyramid         = referenceNodeDataViewType();
-
-      refCenterData_.wedge           = referenceNodeDataViewType();
-    } );
-
-    isReferenceCellCenterDataSet_ = true;
-  }
-
-  template<typename DeviceType>
   template<typename cellCenterValueType, class ...cellCenterProperties>
   void 
   CellTools<DeviceType>::
@@ -211,8 +81,8 @@ namespace Intrepid2 {
     const ordinal_type dim = cell.getDimension();
 
     using inputDeviceType = typename decltype(cellCenter)::device_type;
-    Impl::CellTools<inputDeviceType>::setReferenceCellCenterData();
-    const auto refCellCenter = Impl::CellTools<inputDeviceType>::getReferenceCellCenter(cell.getKey());
+    Impl::RefCellCenter<inputDeviceType>::setReferenceCellCenterData();
+    const auto refCellCenter = Impl::RefCellCenter<inputDeviceType>::getReferenceCellCenter(cell.getKey());
 
     Kokkos::parallel_for(Kokkos::RangePolicy<typename inputDeviceType::execution_space>(0,dim),
     KOKKOS_LAMBDA (const int &i) {cellCenter(i) = refCellCenter(i);}
@@ -242,8 +112,8 @@ namespace Intrepid2 {
 #endif
 
     using inputDeviceType = typename decltype(cellVertex)::device_type;
-    Impl::CellTools<inputDeviceType>::setReferenceNodeData();
-    const auto refNodes = Impl::CellTools<inputDeviceType>::getReferenceNodes(cell.getKey());
+    Impl::RefCellNodes<inputDeviceType>::setReferenceNodeData();
+    const auto refNodes = Impl::RefCellNodes<inputDeviceType>::getReferenceNodes(cell.getKey());
 
     ordinal_type dim = cell.getDimension();
     Kokkos::parallel_for(Kokkos::RangePolicy<typename inputDeviceType::execution_space>(0,dim),
@@ -306,134 +176,12 @@ namespace Intrepid2 {
                                   ">>> ERROR (Intrepid2::CellTools::getReferenceNode): cellNode must have dimension at least as large as cell.getDimension()." );
 #endif
     using inputDeviceType = typename decltype(cellNode)::device_type;
-    Impl::CellTools<inputDeviceType>::setReferenceNodeData();
-    const auto refNodes = Impl::CellTools<inputDeviceType>::getReferenceNodes(cell.getKey());
+    Impl::RefCellNodes<inputDeviceType>::setReferenceNodeData();
+    const auto refNodes = Impl::RefCellNodes<inputDeviceType>::getReferenceNodes(cell.getKey());
 
     Kokkos::parallel_for(Kokkos::RangePolicy<typename inputDeviceType::execution_space>(0,cell.getDimension()),
     KOKKOS_LAMBDA (const int &i) {cellNode(i) = refNodes(nodeOrd,i);}
     );
-  }
-
-  template<typename DeviceType>
-  inline
-  typename Impl::CellTools<DeviceType>::referenceNodeDataViewConstType
-  Impl::CellTools<DeviceType>::
-  getReferenceNodes(const unsigned      cellTopoKey){
-#ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !hasReferenceCell(cellTopoKey), std::invalid_argument,
-        ">>> ERROR (Intrepid2::CellTools::getReferenceNodes): the specified cell topology does not have a reference cell." );
-#endif
-
-    INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !isReferenceNodeDataSet_, std::invalid_argument,
-                                              ">>> ERROR (Intrepid2::CellTools::getReferenceNodes): referenceNodeData not set. \nCall setReferenceNodeData() first.");
-
-    referenceNodeDataViewType refNodes;
-
-    switch (cellTopoKey ) {
-    case shards::Line<2>::key:     
-    case shards::ShellLine<2>::key:
-    case shards::Beam<2>::key:               refNodes = refNodeData_.line; break;
-    case shards::Line<3>::key:     
-    case shards::ShellLine<3>::key:
-    case shards::Beam<3>::key:               refNodes = refNodeData_.line_3; break;
-      
-    case shards::Triangle<3>::key: 
-    case shards::ShellTriangle<3>::key:      refNodes = refNodeData_.triangle; break;
-    case shards::Triangle<4>::key:           refNodes = refNodeData_.triangle_4; break;
-    case shards::Triangle<6>::key:
-    case shards::ShellTriangle<6>::key:      refNodes = refNodeData_.triangle_6; break;
-        
-    case shards::Quadrilateral<4>::key:
-    case shards::ShellQuadrilateral<4>::key: refNodes = refNodeData_.quadrilateral; break;
-    case shards::Quadrilateral<8>::key:
-    case shards::ShellQuadrilateral<8>::key: refNodes = refNodeData_.quadrilateral_8; break;
-    case shards::Quadrilateral<9>::key:
-    case shards::ShellQuadrilateral<9>::key: refNodes = refNodeData_.quadrilateral_9; break;
-
-    case shards::Tetrahedron<4>::key:        refNodes = refNodeData_.tetrahedron; break;
-    case shards::Tetrahedron<8>::key:        refNodes = refNodeData_.tetrahedron_8; break;
-    case shards::Tetrahedron<10>::key:       refNodes = refNodeData_.tetrahedron_10; break;
-    case shards::Tetrahedron<11>::key:       refNodes = refNodeData_.tetrahedron_11; break;
-
-    case shards::Hexahedron<8>::key:         refNodes = refNodeData_.hexahedron; break;
-    case shards::Hexahedron<20>::key:        refNodes = refNodeData_.hexahedron_20; break;
-    case shards::Hexahedron<27>::key:        refNodes = refNodeData_.hexahedron_27; break;
-
-    case shards::Pyramid<5>::key:            refNodes = refNodeData_.pyramid; break;
-    case shards::Pyramid<13>::key:           refNodes = refNodeData_.pyramid_13; break;
-    case shards::Pyramid<14>::key:           refNodes = refNodeData_.pyramid_14; break;
-
-    case shards::Wedge<6>::key:              refNodes = refNodeData_.wedge; break;
-    case shards::Wedge<15>::key:             refNodes = refNodeData_.wedge_15; break;
-    case shards::Wedge<18>::key:             refNodes = refNodeData_.wedge_18; break;
-
-    default: {
-      INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::invalid_argument,
-                                    ">>> ERROR (Intrepid2::CellTools::getReferenceNode): invalid cell topology.");
-    }
-    }
-    return refNodes;
-  }
-
-  template<typename DeviceType>
-  inline
-  typename Impl::CellTools<DeviceType>::referenceNodeDataViewConstType
-  Impl::CellTools<DeviceType>::
-  getReferenceCellCenter(const unsigned      cellTopoKey){
-#ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !hasReferenceCell(cellTopoKey), std::invalid_argument,
-        ">>> ERROR (Intrepid2::CellTools::getReferenceNodes): the specified cell topology does not have a reference cell." );
-#endif
-
-    INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !isReferenceCellCenterDataSet_, std::invalid_argument,
-                                              ">>> ERROR (Intrepid2::CellTools::getReferenceNodes): referenceNodeData not set. \nCall setReferenceNodeData() first.");
-
-    referenceNodeDataViewType cellCenter;
-
-    switch (cellTopoKey ) {
-    case shards::Line<2>::key:
-    case shards::ShellLine<2>::key:
-    case shards::Beam<2>::key:
-    case shards::Line<3>::key:
-    case shards::ShellLine<3>::key:
-    case shards::Beam<3>::key:               cellCenter = refCenterData_.line; break;
-
-    case shards::Triangle<3>::key:
-    case shards::ShellTriangle<3>::key:
-    case shards::Triangle<4>::key:
-    case shards::Triangle<6>::key:
-    case shards::ShellTriangle<6>::key:      cellCenter = refCenterData_.triangle; break;
-
-    case shards::Quadrilateral<4>::key:
-    case shards::ShellQuadrilateral<4>::key:
-    case shards::Quadrilateral<8>::key:
-    case shards::ShellQuadrilateral<8>::key:
-    case shards::Quadrilateral<9>::key:
-    case shards::ShellQuadrilateral<9>::key: cellCenter = refCenterData_.quadrilateral; break;
-
-    case shards::Tetrahedron<4>::key:
-    case shards::Tetrahedron<8>::key:
-    case shards::Tetrahedron<10>::key:
-    case shards::Tetrahedron<11>::key:       cellCenter = refCenterData_.tetrahedron; break;
-
-    case shards::Hexahedron<8>::key:
-    case shards::Hexahedron<20>::key:
-    case shards::Hexahedron<27>::key:        cellCenter = refCenterData_.hexahedron; break;
-
-    case shards::Pyramid<5>::key:
-    case shards::Pyramid<13>::key:
-    case shards::Pyramid<14>::key:           cellCenter = refCenterData_.pyramid; break;
-
-    case shards::Wedge<6>::key:
-    case shards::Wedge<15>::key:
-    case shards::Wedge<18>::key:             cellCenter = refCenterData_.wedge; break;
-
-    default: {
-      INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::invalid_argument,
-                                    ">>> ERROR (Intrepid2::CellTools::getReferenceCellCenter): invalid cell topology.");
-    }
-    }
-    return cellCenter;
   }
 
   template<typename DeviceType>
@@ -504,8 +252,8 @@ namespace Intrepid2 {
     using inputDeviceType = typename decltype(refEdgeTangent)::device_type;
     // Edge parametrizations are computed in setSubcellParametrization and stored in rank-3 array 
     // (subcOrd, coordinate, coefficient)
-    Impl::CellTools<inputDeviceType>::setSubcellParametrization();
-    const auto edgeMap = Impl::CellTools<inputDeviceType>::getSubcellParametrization(1, parentCell.getKey());
+    Impl::RefCellParametrization<inputDeviceType>::setSubcellParametrization();
+    const auto edgeMap = Impl::RefCellParametrization<inputDeviceType>::getSubcellParametrization(1, parentCell.getKey());
   
     // All ref. edge maps have affine coordinate functions: f_dim(u) = C_0(dim) + C_1(dim)*u, 
     //                                     => edge Tangent: -> C_1(*)
@@ -543,8 +291,8 @@ namespace Intrepid2 {
 
     // Face parametrizations are computed in setSubcellParametrization and stored in rank-3 array 
     // (subcOrd, coordinate, coefficient): retrieve this array
-    Impl::CellTools<inputDeviceType>::setSubcellParametrization();
-    const auto faceMap = Impl::CellTools<inputDeviceType>::getSubcellParametrization(2, parentCell.getKey());
+    Impl::RefCellParametrization<inputDeviceType>::setSubcellParametrization();
+    const auto faceMap = Impl::RefCellParametrization<inputDeviceType>::getSubcellParametrization(2, parentCell.getKey());
   
     /*  All ref. face maps have affine coordinate functions:  f_dim(u,v) = C_0(dim) + C_1(dim)*u + C_2(dim)*v
      *                           `   => Tangent vectors are:  refFaceTanU -> C_1(*);    refFaceTanV -> C_2(*)
@@ -832,150 +580,6 @@ namespace Intrepid2 {
   
     RealSpaceTools<DeviceType>::vecprod(faceNormals, faceTanU, faceTanV);
   }
-
-
-  template<typename DeviceType>
-  bool 
-  Impl::CellTools<DeviceType>::
-  isReferenceNodeDataSet_ = false;
-
-  template<typename DeviceType>
-  typename Impl::CellTools<DeviceType>::ReferenceNodeData
-  Impl::CellTools<DeviceType>::
-  refNodeData_ = typename Impl::CellTools<DeviceType>::ReferenceNodeData();
-
-  template<typename DeviceType>
-  const typename Impl::CellTools<DeviceType>::ReferenceNodeDataStatic
-  Impl::CellTools<DeviceType>::
-  refNodeDataStatic_ = {    
-    // line
-    { // 2
-      {-1.0, 0.0, 0.0}, { 1.0, 0.0, 0.0} 
-    },
-    { // 3
-      {-1.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 0.0, 0.0}
-    },
-    // triangle
-    { // 3
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0} 
-    },
-    { // 4
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, { 1.0/3.0, 1.0/3.0, 0.0}
-    },
-    { // 6
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0},
-      { 0.5, 0.0, 0.0}, { 0.5, 0.5, 0.0}, { 0.0, 0.5, 0.0}
-    },
-    // quad
-    { // 4
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0}
-    },
-    { // 8
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0},
-      { 0.0,-1.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}
-    },
-    { // 9
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0},
-      { 0.0,-1.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0}, { 0.0, 0.0, 0.0}
-    },
-    // tet
-    { // 4
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, { 0.0, 0.0, 1.0}
-    },
-    { // 8
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, { 0.0, 0.0, 1.0},
-      { 1.0/3.0, 0.0, 1.0/3.0}, { 1.0/3.0, 1.0/3.0, 1.0/3.0}, { 1.0/3.0, 1.0/3.0, 0.0}, { 0.0, 1.0/3.0, 1.0/3.0}
-    },
-    { // 10
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, { 0.0, 0.0, 1.0},
-      { 0.5, 0.0, 0.0}, { 0.5, 0.5, 0.0}, { 0.0, 0.5, 0.0}, { 0.0, 0.0, 0.5}, { 0.5, 0.0, 0.5}, { 0.0, 0.5, 0.5}
-    },
-    { // 11
-      { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, { 0.0, 0.0, 1.0},
-      { 0.5, 0.0, 0.0}, { 0.5, 0.5, 0.0}, { 0.0, 0.5, 0.0}, { 0.0, 0.0, 0.5}, { 0.5, 0.0, 0.5}, { 0.0, 0.5, 0.5}
-    },
-    // hex
-    { // 8
-      {-1.0,-1.0,-1.0}, { 1.0,-1.0,-1.0}, { 1.0, 1.0,-1.0}, {-1.0, 1.0,-1.0},
-      {-1.0,-1.0, 1.0}, { 1.0,-1.0, 1.0}, { 1.0, 1.0, 1.0}, {-1.0, 1.0, 1.0}
-    },
-    { // 20
-      {-1.0,-1.0,-1.0}, { 1.0,-1.0,-1.0}, { 1.0, 1.0,-1.0}, {-1.0, 1.0,-1.0},
-      {-1.0,-1.0, 1.0}, { 1.0,-1.0, 1.0}, { 1.0, 1.0, 1.0}, {-1.0, 1.0, 1.0},
-      { 0.0,-1.0,-1.0}, { 1.0, 0.0,-1.0}, { 0.0, 1.0,-1.0}, {-1.0, 0.0,-1.0}, 
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0},
-      { 0.0,-1.0, 1.0}, { 1.0, 0.0, 1.0}, { 0.0, 1.0, 1.0}, {-1.0, 0.0, 1.0}
-    },
-    { // 27
-      {-1.0,-1.0,-1.0}, { 1.0,-1.0,-1.0}, { 1.0, 1.0,-1.0}, {-1.0, 1.0,-1.0},
-      {-1.0,-1.0, 1.0}, { 1.0,-1.0, 1.0}, { 1.0, 1.0, 1.0}, {-1.0, 1.0, 1.0},
-      { 0.0,-1.0,-1.0}, { 1.0, 0.0,-1.0}, { 0.0, 1.0,-1.0}, {-1.0, 0.0,-1.0}, 
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0},
-      { 0.0,-1.0, 1.0}, { 1.0, 0.0, 1.0}, { 0.0, 1.0, 1.0}, {-1.0, 0.0, 1.0},
-      { 0.0, 0.0, 0.0},
-      { 0.0, 0.0,-1.0}, { 0.0, 0.0, 1.0}, {-1.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, {0.0,-1.0, 0.0}, {0.0, 1.0, 0.0} 
-    },
-    // pyramid
-    { // 5
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0}, { 0.0, 0.0, 1.0}
-    },
-    { // 13
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0}, { 0.0, 0.0, 1.0},
-      { 0.0,-1.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0},
-      {-0.5,-0.5, 0.5}, { 0.5,-0.5, 0.5}, { 0.5, 0.5, 0.5}, {-0.5, 0.5, 0.5}   
-    },
-    { // 14 
-      {-1.0,-1.0, 0.0}, { 1.0,-1.0, 0.0}, { 1.0, 1.0, 0.0}, {-1.0, 1.0, 0.0}, { 0.0, 0.0, 1.0},
-      { 0.0,-1.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0}, {-1.0, 0.0, 0.0},
-      {-0.5,-0.5, 0.5}, { 0.5,-0.5, 0.5}, { 0.5, 0.5, 0.5}, {-0.5, 0.5, 0.5}, { 0.0, 0.0, 0.0}  
-    },
-    // wedge
-    { // 6
-      { 0.0, 0.0,-1.0}, { 1.0, 0.0,-1.0}, { 0.0, 1.0,-1.0}, { 0.0, 0.0, 1.0}, { 1.0, 0.0, 1.0}, { 0.0, 1.0, 1.0} 
-    },
-    { // 15
-      { 0.0, 0.0,-1.0}, { 1.0, 0.0,-1.0}, { 0.0, 1.0,-1.0}, { 0.0, 0.0, 1.0}, { 1.0, 0.0, 1.0}, { 0.0, 1.0, 1.0},
-      { 0.5, 0.0,-1.0}, { 0.5, 0.5,-1.0}, { 0.0, 0.5,-1.0}, { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0},
-      { 0.5, 0.0, 1.0}, { 0.5, 0.5, 1.0}, { 0.0, 0.5, 1.0}
-    },
-    { // 18
-      { 0.0, 0.0,-1.0}, { 1.0, 0.0,-1.0}, { 0.0, 1.0,-1.0}, { 0.0, 0.0, 1.0}, { 1.0, 0.0, 1.0}, { 0.0, 1.0, 1.0},
-      { 0.5, 0.0,-1.0}, { 0.5, 0.5,-1.0}, { 0.0, 0.5,-1.0}, { 0.0, 0.0, 0.0}, { 1.0, 0.0, 0.0}, { 0.0, 1.0, 0.0},
-      { 0.5, 0.0, 1.0}, { 0.5, 0.5, 1.0}, { 0.0, 0.5, 1.0},
-      { 0.5, 0.0, 0.0}, { 0.5, 0.5, 0.0}, { 0.0, 0.5, 0.0}
-    }
-  };
-
-  template<typename DeviceType>
-  bool
-  Impl::CellTools<DeviceType>::
-  isReferenceCellCenterDataSet_ = false;
-
-  template<typename DeviceType>
-  typename Impl::CellTools<DeviceType>::ReferenceCellCenterData
-  Impl::CellTools<DeviceType>::
-  refCenterData_ = typename Impl::CellTools<DeviceType>::ReferenceCellCenterData();
-
-  template<typename DeviceType>
-  const typename Impl::CellTools<DeviceType>::ReferenceCenterDataStatic
-  Impl::CellTools<DeviceType>::
-  refCenterDataStatic_ = {
-    // line
-    {0.0, 0.0, 0.0},
-    // triangle
-    { 1.0/3.0, 1.0/3.0, 0.0},
-    // quad
-    {0.0, 0.0, 0.0},
-    // tet
-    { 0.25, 0.25, 0.25},
-    // hex
-    { 0.0, 0.0, 0.0},
-    // pyramid
-    { 0.0, 0.0, 0.25},
-    // wedge
-    { 1.0/3.0, 1.0/3.0, 0.0},
-  };
-    
 }
 
 #endif

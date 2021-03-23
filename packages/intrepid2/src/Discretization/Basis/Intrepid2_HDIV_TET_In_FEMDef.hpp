@@ -300,7 +300,6 @@ Basis_HDIV_TET_In_FEM( const ordinal_type order,
   Kokkos::DynRankView<scalarType,typename DT::execution_space::array_layout,Kokkos::HostSpace> faceNormal("Hcurl::Tet::In::faceNormal", spaceDim );
 
   // loop over faces
-  Impl::CellTools<Kokkos::HostSpace>::setSubcellParametrization();
   for (ordinal_type face=0;face<numFaces;face++) {  // loop over faces
 
     // these are normal scaled by the appropriate face areas.

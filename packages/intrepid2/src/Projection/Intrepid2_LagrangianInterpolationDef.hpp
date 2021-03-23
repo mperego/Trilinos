@@ -347,8 +347,8 @@ LagrangianInterpolation<SpT>::getDofCoordsAndCoeffs(
     edgeBasis->getDofCoeffs(Kokkos::subview(edgeDofCoeffs, iedge, dofRange));
   }
 
-  Impl::CellTools<SpT>::setSubcellParametrization();
-  const auto edgeParam = Impl::CellTools<SpT>::getSubcellParametrization(1, topo.getKey());
+  Impl::RefCellParametrization<SpT>::setSubcellParametrization();
+  const auto edgeParam = Impl::RefCellParametrization<SpT>::getSubcellParametrization(1, topo.getKey());
 
   //*** Pre-compute needed quantities related to face DoFs that do not depend on the cell ***
   intViewType faceTopoKey("faceTopoKey",numFaces);
@@ -393,9 +393,9 @@ LagrangianInterpolation<SpT>::getDofCoordsAndCoeffs(
     faceBasis->getDofCoeffs(Kokkos::subview(faceDofCoeffs, iface, dofRange, Kokkos::ALL()));
   }
 
-  typename Impl::CellTools<SpT>::subcellParamViewConstType faceParam;
+  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType faceParam;
   if(dim > 2)
-    faceParam = Impl::CellTools<SpT>::getSubcellParametrization(2, topo.getKey());
+    faceParam = Impl::RefCellParametrization<SpT>::getSubcellParametrization(2, topo.getKey());
 
 
   //*** Loop over cells ***
