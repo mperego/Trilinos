@@ -44,7 +44,7 @@
     \brief  Definition file for the Intrepid2::Impl::CellData class.
     \author Kyungjoo Kim
     \author Mauro Perego
-*/
+ */
 
 #ifndef __INTREPID2_CELLDATA_HPP__
 #define __INTREPID2_CELLDATA_HPP__
@@ -61,109 +61,6 @@ namespace Intrepid2 {
 
 namespace Impl {
 
-template<typename DeviceType>
-class CellData {
-  using ExecSpaceType = typename DeviceType::execution_space;
-  using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
-public:
-
-KOKKOS_INLINE_FUNCTION
-static bool
-hasReferenceCell( const unsigned cellTopoKey ) {
-  switch ( cellTopoKey ) {
-  case shards::Line<2>::key:
-  case shards::Line<3>::key:
-  case shards::ShellLine<2>::key:
-  case shards::ShellLine<3>::key:
-  case shards::Beam<2>::key:
-  case shards::Beam<3>::key:
-  case shards::Triangle<3>::key:
-  // case shards::Triangle<4>::key:
-  case shards::Triangle<6>::key:
-  // case shards::ShellTriangle<3>::key:
-  // case shards::ShellTriangle<6>::key:
-  case shards::Quadrilateral<4>::key:
-  case shards::Quadrilateral<8>::key:
-  case shards::Quadrilateral<9>::key:
-  // case shards::ShellQuadrilateral<4>::key:
-  // case shards::ShellQuadrilateral<8>::key:
-  // case shards::ShellQuadrilateral<9>::key:
-  case shards::Tetrahedron<4>::key:
-  // case shards::Tetrahedron<8>::key:
-  case shards::Tetrahedron<10>::key:
-  // case shards::Tetrahedron<11>::key:
-  case shards::Hexahedron<8>::key:
-  case shards::Hexahedron<20>::key:
-  case shards::Hexahedron<27>::key:
-  case shards::Pyramid<5>::key:
-  // case shards::Pyramid<13>::key:
-  // case shards::Pyramid<14>::key:
-  case shards::Wedge<6>::key:
-  // case shards::Wedge<15>::key:
-  case shards::Wedge<18>::key:
-    return true;
-  default:
-    return false;
-  }
-}
-
-// reference nodes initialized
-/** \struct Intrepid2::Impl::CellData::ReferenceNodeDataStatic
-    \brief Reference node containers for each supported topology
- */
-struct ReferenceNodeDataStatic {
-  double line[2][3], line_3[3][3];
-  double triangle[3][3], triangle_4[4][3], triangle_6[6][3];
-  double quadrilateral[4][3], quadrilateral_8[8][3], quadrilateral_9[9][3];
-  double tetrahedron[4][3], tetrahedron_8[8][3], tetrahedron_10[10][3], tetrahedron_11[10][3];
-  double hexahedron[8][3], hexahedron_20[20][3], hexahedron_27[27][3];
-  double pyramid[5][3], pyramid_13[13][3], pyramid_14[14][3];
-  double wedge[6][3], wedge_15[15][3], wedge_18[18][3];
-};
-
-struct ReferenceCenterDataStatic {
-  double line[3];
-  double triangle[3];
-  double quadrilateral[3];
-  double tetrahedron[3];
-  double hexahedron[3];
-  double pyramid[3];
-  double wedge[3];
-};
-
-/** \struct Intrepid2::Impl::CellData::ReferenceNodeData
-    \brief Reference node data for each supported topology
- */
-typedef Kokkos::DynRankView<double,DeviceType> referenceNodeDataViewType;
-typedef Kokkos::DynRankView<const double,DeviceType> referenceNodeDataViewConstType;
-typedef Kokkos::DynRankView<const double,HostSpaceType> referenceNodeDataConstViewHostType;
-struct ReferenceNodeData {
-  referenceNodeDataViewType line, line_3;
-  referenceNodeDataViewType triangle, triangle_4, triangle_6;
-  referenceNodeDataViewType quadrilateral, quadrilateral_8, quadrilateral_9;
-  referenceNodeDataViewType tetrahedron, tetrahedron_8, tetrahedron_10, tetrahedron_11;
-  referenceNodeDataViewType hexahedron, hexahedron_20, hexahedron_27;
-  referenceNodeDataViewType pyramid, pyramid_13, pyramid_14;
-  referenceNodeDataViewType wedge, wedge_15, wedge_18;
-};
-
-struct ReferenceCellCenterData {
-  referenceNodeDataViewType line;
-  referenceNodeDataViewType triangle;
-  referenceNodeDataViewType quadrilateral;
-  referenceNodeDataViewType tetrahedron;
-  referenceNodeDataViewType hexahedron;
-  referenceNodeDataViewType pyramid;
-  referenceNodeDataViewType wedge;
-};
-
-static  const ReferenceNodeDataStatic refNodeDataStatic_;
-static  const ReferenceCenterDataStatic refCenterDataStatic_;
-static        ReferenceNodeData       refNodeData_;
-static        ReferenceCellCenterData refCenterData_;
-
-static bool isReferenceNodeDataSet_;
-static bool isReferenceCellCenterDataSet_;
 
 
 //============================================================================================//
@@ -172,55 +69,26 @@ static bool isReferenceCellCenterDataSet_;
 //                                                                                            //
 //============================================================================================//
 
-typedef Kokkos::DynRankView<double,DeviceType> subcellParamViewType;
-typedef Kokkos::DynRankView<const double,DeviceType> subcellParamViewConstType;
-
-// static variables
-/** \struct Intrepid2::Impl::CellData::SubcellParamData
-    \brief Parametrization coefficients of edges and faces of reference cells
- */
-struct SubcellParamData {
-  subcellParamViewType dummy;
-  subcellParamViewType lineEdges;  // edge maps for 2d non-standard cells; shell line and beam
-  subcellParamViewType triEdges, quadEdges; // edge maps for 2d standard cells
-  subcellParamViewType shellTriEdges, shellQuadEdges; // edge maps for 3d non-standard cells; shell tri and quad
-  subcellParamViewType tetEdges, hexEdges, pyrEdges, wedgeEdges; // edge maps for 3d standard cells
-  subcellParamViewType shellTriFaces, shellQuadFaces; // face maps for 3d non-standard cells
-  subcellParamViewType tetFaces, hexFaces, pyrFaces, wedgeFaces; // face maps for 3d standard cells
-};
-
-static SubcellParamData subcellParamData_;
-
-static bool isSubcellParametrizationSet_;
-
-/** \brief  Sets orientation-preserving parametrizations of reference edges and faces of cell
-    topologies with reference cells. Used to populate Intrepid2::Impl::CellData::SubcellParamData.
-
-    See Intrepid2::Impl::CellData::setSubcellParametrization and Section \ref sec_cell_topology_subcell_map
-    more information about parametrization maps.
-
-    \param  subcellParam           [out]  - array with the coefficients of the parametrization map
-    \param  subcellDim             [in]   - dimension of the subcells being parametrized (1 or 2)
-    \param  parentCell             [in]   - topology of the parent cell owning the subcells.
-*/
-template <typename HostViewType>
-static void
-setSubcellParametrization(       HostViewType          subcellParam,
-                           const ordinal_type          subcellDim,
-                           const shards::CellTopology  parentCell );
-
-
-
+template<typename DeviceType>
+class RefCellParametrization {
+  using ExecSpaceType = typename DeviceType::execution_space;
+  using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
 public:
+  typedef Kokkos::DynRankView<double,DeviceType> subcellParamViewType;
+  typedef Kokkos::DynRankView<const double,DeviceType> subcellParamViewConstType;
 
 
-   /** \brief  Default constructor.
-      */
-    CellData() = default;
+  KOKKOS_INLINE_FUNCTION
+  static bool
+  hasReferenceParametrization( const unsigned cellTopoKey );
 
-    /** \brief  Destructor
-      */
-    ~CellData() = default;
+  /** \brief  Default constructor.
+   */
+  RefCellParametrization() = default;
+
+  /** \brief  Destructor
+   */
+  ~RefCellParametrization() = default;
 
   /** \brief  Defines orientation-preserving parametrizations of reference edges and faces of cell
       topologies with reference cells.
@@ -255,33 +123,75 @@ public:
       for cells such as Wedge or Pyramid that have both types of faces. Also, coefficients of
       coordinate functions for all faces can be stored together in the same array.
 
-  */
+   */
   static void setSubcellParametrization();
 
-  /*
-  static
-  void
-  getSubcellParametrization(       subcellParamViewHostType &subcellParam,
-                             const ordinal_type          subcellDim,
-                             const shards::CellTopology  parentCell );
-  */
   static inline
   subcellParamViewConstType
   getSubcellParametrization( const ordinal_type          subcellDim,
-                             const unsigned              parentCellKey );
+      const unsigned              parentCellKey );
+
+private:
+  /** \brief  Sets orientation-preserving parametrizations of reference edges and faces of cell
+      topologies with reference cells. Used to populate Intrepid2::Impl::CellData::SubcellParamData.
+
+      See Intrepid2::Impl::CellData::setSubcellParametrization and Section \ref sec_cell_topology_subcell_map
+      more information about parametrization maps.
+
+      \param  subcellParam           [out]  - array with the coefficients of the parametrization map
+      \param  subcellDim             [in]   - dimension of the subcells being parametrized (1 or 2)
+      \param  parentCell             [in]   - topology of the parent cell owning the subcells.
+   */
+  template <typename HostViewType>
+  static void
+  setSubcellParametrization(       HostViewType          subcellParam,
+      const ordinal_type          subcellDim,
+      const shards::CellTopology  parentCell );
+
+  // static variables
+  /** \struct Intrepid2::Impl::CellData::SubcellParamData
+      \brief Parametrization coefficients of edges and faces of reference cells
+   */
+  struct SubcellParamData {
+    subcellParamViewType dummy;
+    subcellParamViewType lineEdges;  // edge maps for 2d non-standard cells; shell line and beam
+    subcellParamViewType triEdges, quadEdges; // edge maps for 2d standard cells
+    subcellParamViewType shellTriEdges, shellQuadEdges; // edge maps for 3d non-standard cells; shell tri and quad
+    subcellParamViewType tetEdges, hexEdges, pyrEdges, wedgeEdges; // edge maps for 3d standard cells
+    subcellParamViewType shellTriFaces, shellQuadFaces; // face maps for 3d non-standard cells
+    subcellParamViewType tetFaces, hexFaces, pyrFaces, wedgeFaces; // face maps for 3d standard cells
+  };
+
+  static SubcellParamData subcellParamData_;
+
+  static bool isSubcellParametrizationSet_;
 
 
+};
+
+template<typename DeviceType>
+class RefCellNodes {
+  using ExecSpaceType = typename DeviceType::execution_space;
+  using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
+public:
+  typedef Kokkos::DynRankView<double,DeviceType> referenceNodeDataViewType;
+  typedef Kokkos::DynRankView<const double,DeviceType> referenceNodeDataViewConstType;
+  typedef Kokkos::DynRankView<const double,HostSpaceType> referenceNodeDataConstViewHostType;
+
+
+  /** \brief  Default constructor.
+   */
+  RefCellNodes() = default;
+
+  /** \brief  Destructor
+   */
+  ~RefCellNodes() = default;
 
   /** \brief Set reference node coordinates for supported topologies.
-  */
+   */
   static void setReferenceNodeData();
 
-  /** \brief Set center coordinates of reference cell for supported topologies.
-  */
-  static void setReferenceCellCenterData();
-
-
-/** \brief  Retrieves the Cartesian coordinates of a reference cell node.
+  /** \brief  Retrieves the Cartesian coordinates of a reference cell node.
 
     Returns Cartesian coordinates of a reference cell node. Requires cell topology
     with a reference cell. Node coordinates are always returned as an (x,y,z)-triple
@@ -293,13 +203,71 @@ public:
     with base topology this method is equivalent to Intrepid2::Impl::CellData::getReferenceNodes.
 
     \param  cell              [in]  - key of the cell topology
-*/
-static inline
-referenceNodeDataViewConstType
-getReferenceNodes(const unsigned      cellTopoKey);
+   */
+  static inline
+  referenceNodeDataViewConstType
+  getReferenceNodes(const unsigned      cellTopoKey);
+
+private:
+
+  /** \struct Intrepid2::Impl::CellData::ReferenceNodeData
+    \brief Reference node data for each supported topology
+   */
+  struct ReferenceNodeData {
+    referenceNodeDataViewType line, line_3;
+    referenceNodeDataViewType triangle, triangle_4, triangle_6;
+    referenceNodeDataViewType quadrilateral, quadrilateral_8, quadrilateral_9;
+    referenceNodeDataViewType tetrahedron, tetrahedron_8, tetrahedron_10, tetrahedron_11;
+    referenceNodeDataViewType hexahedron, hexahedron_20, hexahedron_27;
+    referenceNodeDataViewType pyramid, pyramid_13, pyramid_14;
+    referenceNodeDataViewType wedge, wedge_15, wedge_18;
+  };
+
+  // reference nodes initialized
+  /** \struct Intrepid2::CellTools::ReferenceNodeDataStatic
+    \brief Reference node containers for each supported topology
+   */
+  struct ReferenceNodeDataStatic {
+    double line[2][3], line_3[3][3];
+    double triangle[3][3], triangle_4[4][3], triangle_6[6][3];
+    double quadrilateral[4][3], quadrilateral_8[8][3], quadrilateral_9[9][3];
+    double tetrahedron[4][3], tetrahedron_8[8][3], tetrahedron_10[10][3], tetrahedron_11[10][3];
+    double hexahedron[8][3], hexahedron_20[20][3], hexahedron_27[27][3];
+    double pyramid[5][3], pyramid_13[13][3], pyramid_14[14][3];
+    double wedge[6][3], wedge_15[15][3], wedge_18[18][3];
+  };
+
+  static  const ReferenceNodeDataStatic refNodeDataStatic_;
+  static ReferenceNodeData refNodeData_;
+  static bool isReferenceNodeDataSet_;
+
+};
 
 
-/** \brief  Retrieves the Cartesian coordinates of a reference cell node.
+template<typename DeviceType>
+class RefCellCenter {
+  using ExecSpaceType = typename DeviceType::execution_space;
+  using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
+public:
+  typedef Kokkos::DynRankView<double,DeviceType> referenceNodeDataViewType;
+  typedef Kokkos::DynRankView<const double,DeviceType> referenceNodeDataViewConstType;
+  typedef Kokkos::DynRankView<const double,HostSpaceType> referenceNodeDataConstViewHostType;
+
+
+  /** \brief  Default constructor.
+   */
+  RefCellCenter() = default;
+
+  /** \brief  Destructor
+   */
+  ~RefCellCenter() = default;
+
+
+  /** \brief Set center coordinates of reference cell for supported topologies.
+   */
+  static void setReferenceCellCenterData();
+
+  /** \brief  Retrieves the Cartesian coordinates of a reference cell node.
 
     Returns Cartesian coordinates of a reference cell node. Requires cell topology
     with a reference cell. Node coordinates are always returned as an (x,y,z)-triple
@@ -311,11 +279,36 @@ getReferenceNodes(const unsigned      cellTopoKey);
     with base topology this method is equivalent to Intrepid2::Impl::CellData::getReferenceCellCenter.
 
     \param  cell              [in]  - key of the cell topology
-*/
-static inline
-referenceNodeDataViewConstType
-getReferenceCellCenter(const unsigned      cellTopoKey);
+   */
+  static inline
+  referenceNodeDataViewConstType
+  getReferenceCellCenter(const unsigned      cellTopoKey);
 
+private:
+
+  struct ReferenceCellCenterData {
+    referenceNodeDataViewType line;
+    referenceNodeDataViewType triangle;
+    referenceNodeDataViewType quadrilateral;
+    referenceNodeDataViewType tetrahedron;
+    referenceNodeDataViewType hexahedron;
+    referenceNodeDataViewType pyramid;
+    referenceNodeDataViewType wedge;
+  };
+
+  struct ReferenceCenterDataStatic {
+    double line[3];
+    double triangle[3];
+    double quadrilateral[3];
+    double tetrahedron[3];
+    double hexahedron[3];
+    double pyramid[3];
+    double wedge[3];
+  };
+
+  static  const ReferenceCenterDataStatic refCenterDataStatic_;
+  static ReferenceCellCenterData refCenterData_;
+  static bool isReferenceCellCenterDataSet_;
 };
 }
 }
