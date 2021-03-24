@@ -317,7 +317,7 @@ namespace Intrepid2 {
   CellTools<DeviceType>::
   mapToReferenceSubcell(       Kokkos::DynRankView<refSubcellPointValueType,refSubcellPointProperties...> refSubcellPoints,
                          const Kokkos::DynRankView<paramPointValueType,paramPointProperties...>           paramPoints,
-                         const subcellParamViewConstType subcellMap,
+                         const SubcellParamConstViewType subcellMap,
                          const ordinal_type subcellDim,
                          const ordinal_type subcellOrd) {
 

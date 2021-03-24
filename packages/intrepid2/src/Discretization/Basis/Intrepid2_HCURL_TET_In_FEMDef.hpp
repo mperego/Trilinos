@@ -366,7 +366,7 @@ Basis_HCURL_TET_In_FEM( const ordinal_type order,
 
   // these are tangents scaled by the appropriate edge lengths.
   for (ordinal_type i=0;i<numEdges;i++) {  // loop over edges
-    CellTools<Kokkos::HostSpace::execution_space>::getReferenceEdgeTangent( edgeTan ,
+    CellTools<Kokkos::HostSpace>::getReferenceEdgeTangent( edgeTan ,
         i ,
         this->basisCellTopology_ );
 
@@ -376,7 +376,7 @@ Basis_HCURL_TET_In_FEM( const ordinal_type order,
         i ,
         this->basisCellTopology_);
 
-    Impl::Basis_HGRAD_TET_Cn_FEM_ORTH::getValues<Kokkos::HostSpace::execution_space,Parameters::MaxNumPtsPerBasisEval>(phisAtEdgePoints , edgePts, order, OPERATOR_VALUE);
+    Impl::Basis_HGRAD_TET_Cn_FEM_ORTH::getValues<Kokkos::HostSpace,Parameters::MaxNumPtsPerBasisEval>(phisAtEdgePoints , edgePts, order, OPERATOR_VALUE);
 
     // loop over points (rows of V2)
     for (ordinal_type j=0;j<numPtsPerEdge;j++) {

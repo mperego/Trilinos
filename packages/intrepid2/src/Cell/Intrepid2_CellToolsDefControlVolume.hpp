@@ -368,11 +368,11 @@ namespace Intrepid2 {
 
   }
   
-  template<typename SpT>
+  template<typename DeviceType>
   template<typename subcvCoordValueType, class ...subcvCoordProperties,
            typename cellCoordValueType,  class ...cellCoordProperties>
   void
-  CellTools<SpT>::
+  CellTools<DeviceType>::
   getSubcvCoords(       Kokkos::DynRankView<subcvCoordValueType,subcvCoordProperties...> subcvCoords,
                   const Kokkos::DynRankView<cellCoordValueType,cellCoordProperties...>   cellCoords,
                   const shards::CellTopology primaryCell ) {
@@ -410,8 +410,8 @@ namespace Intrepid2 {
     }
 
     // create mirror to device
-    auto edgeMap = Kokkos::create_mirror_view(typename SpT::memory_space(), edgeMapHost);
-    auto faceMap = Kokkos::create_mirror_view(typename SpT::memory_space(), faceMapHost);
+    auto edgeMap = Kokkos::create_mirror_view(typename DeviceType::memory_space(), edgeMapHost);
+    auto faceMap = Kokkos::create_mirror_view(typename DeviceType::memory_space(), faceMapHost);
 
     Kokkos::deep_copy(edgeMap, edgeMapHost);
     Kokkos::deep_copy(faceMap, faceMapHost);
@@ -419,9 +419,9 @@ namespace Intrepid2 {
     // parallel run
     typedef Kokkos::DynRankView<subcvCoordValueType,subcvCoordProperties...> subcvCoordViewType;
     typedef Kokkos::DynRankView<cellCoordValueType,cellCoordProperties...>   cellCoordViewType;
-    typedef Kokkos::View<ordinal_type**,Kokkos::LayoutRight,SpT>             mapViewType;
+    typedef Kokkos::View<ordinal_type**,Kokkos::LayoutRight,DeviceType>             mapViewType;
 
-    typedef typename ExecSpace<typename subcvCoordViewType::execution_space,SpT>::ExecSpaceType ExecutionSpace;
+    typedef typename ExecSpace<typename subcvCoordViewType::execution_space,DeviceType>::ExecSpaceType ExecutionSpace;
 
     const auto loopSize = numCells;
     Kokkos::RangePolicy<ExecutionSpace,Kokkos::Schedule<Kokkos::Static> > policy(0, loopSize);

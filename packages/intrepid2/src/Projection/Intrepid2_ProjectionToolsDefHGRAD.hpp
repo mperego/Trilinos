@@ -337,7 +337,7 @@ ProjectionTools<SpT>::getHGradEvaluationPoints(typename BasisType::ScalarViewTyp
   ordinal_type numFaces = (cellBasis->getDofCount(2, 0) > 0) ? cellTopo.getFaceCount() : 0;
 
   Impl::RefCellParametrization<SpT>::setSubcellParametrization();
-  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType subcellParamEdge,  subcellParamFace;
+  typename Impl::RefCellParametrization<SpT>::ConstViewType subcellParamEdge,  subcellParamFace;
   if(numEdges>0)
     subcellParamEdge = Impl::RefCellParametrization<SpT>::getSubcellParametrization(edgeDim, cellBasis->getBaseCellTopology().getKey());
   if(numFaces>0)
@@ -502,7 +502,7 @@ ProjectionTools<SpT>::getHGradBasisCoeffs(BasisCoeffsViewType basisCoeffs,
   auto tagToOrdinal = Kokkos::create_mirror_view_and_copy(typename SpT::memory_space(), cellBasis->getAllDofOrdinal());
 
   Impl::RefCellParametrization<SpT>::setSubcellParametrization();
-  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType  subcellParamFace;
+  typename Impl::RefCellParametrization<SpT>::ConstViewType  subcellParamFace;
   if(numFaces>0)
     subcellParamFace = Impl::RefCellParametrization<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
 

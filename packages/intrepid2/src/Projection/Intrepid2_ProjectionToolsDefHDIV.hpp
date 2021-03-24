@@ -262,7 +262,7 @@ ProjectionTools<SpT>::getHDivEvaluationPoints(typename BasisType::ScalarViewType
   ordinal_type numCells = orts.extent(0);
 
   Impl::RefCellParametrization<SpT>::setSubcellParametrization();
-  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType subcellParamSide;
+  typename Impl::RefCellParametrization<SpT>::ConstViewType subcellParamSide;
   if(numSides>0)
     subcellParamSide = Impl::RefCellParametrization<SpT>::getSubcellParametrization(sideDim, cellBasis->getBaseCellTopology().getKey());
 

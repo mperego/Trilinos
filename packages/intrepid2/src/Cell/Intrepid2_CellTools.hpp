@@ -107,8 +107,8 @@ namespace Intrepid2 {
   template<typename DeviceType>
   class CellTools {
     using ExecSpaceType = typename DeviceType::execution_space;
-    using subcellParamViewType = typename Impl::RefCellParametrization<DeviceType>::subcellParamViewType;
-    using subcellParamViewConstType = typename Impl::RefCellParametrization<DeviceType>::subcellParamViewConstType;
+    using SubcellParamViewType = typename Impl::RefCellParametrization<DeviceType>::ViewType;
+    using SubcellParamConstViewType = typename Impl::RefCellParametrization<DeviceType>::ConstViewType;
   public:
 
     /** \brief  Checks if a cell topology has reference cell
@@ -1004,7 +1004,7 @@ public:
 
     */
     static void
-    getSubcellParametrization(  subcellParamViewType &subcellParam,
+    getSubcellParametrization(  SubcellParamViewType &subcellParam,
                                const ordinal_type          subcellDim,
                                const shards::CellTopology  parentCell );
 
@@ -1084,7 +1084,7 @@ public:
     KOKKOS_INLINE_FUNCTION
     mapToReferenceSubcell(       Kokkos::DynRankView<refSubcellPointValueType,refSubcellPointProperties...> refSubcellPoints,
                            const Kokkos::DynRankView<paramPointValueType,paramPointProperties...>           paramPoints,
-                           const subcellParamViewConstType subcellMap,
+                           const SubcellParamConstViewType subcellMap,
                            const ordinal_type subcellDim,
                            const ordinal_type subcellOrd);
 

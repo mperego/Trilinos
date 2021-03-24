@@ -66,7 +66,7 @@ namespace Intrepid2 {
   template<typename DeviceType>
   void
   CellTools<DeviceType>::
-  getSubcellParametrization(       subcellParamViewType &subcellParam,
+  getSubcellParametrization(       SubcellParamViewType &subcellParam,
                              const ordinal_type         subcellDim,
                              const shards::CellTopology parentCell ) {
     Impl::RefCellParametrization<DeviceType>::setSubcellParametrization();

@@ -411,7 +411,7 @@ ProjectionTools<SpT>::getHCurlEvaluationPoints(typename BasisType::ScalarViewTyp
   ordinal_type numFaces = (cellBasis->getDofCount(2, 0) > 0) ? cellTopo.getFaceCount() : 0;
 
   Impl::RefCellParametrization<SpT>::setSubcellParametrization();
-  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType subcellParamEdge,  subcellParamFace;
+  typename Impl::RefCellParametrization<SpT>::ConstViewType subcellParamEdge,  subcellParamFace;
   if(numEdges>0)
     subcellParamEdge = Impl::RefCellParametrization<SpT>::getSubcellParametrization(edgeDim, cellTopo.getKey());
   if(numFaces>0)
@@ -643,7 +643,7 @@ ProjectionTools<SpT>::getHCurlBasisCoeffs(Kokkos::DynRankView<basisCoeffsValueTy
   }
 
   Impl::RefCellParametrization<SpT>::setSubcellParametrization();
-  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType  subcellParamFace;
+  typename Impl::RefCellParametrization<SpT>::ConstViewType  subcellParamFace;
   if(numFaces>0)
     subcellParamFace = Impl::RefCellParametrization<SpT>::getSubcellParametrization(faceDim, cellBasis->getBaseCellTopology().getKey());
 

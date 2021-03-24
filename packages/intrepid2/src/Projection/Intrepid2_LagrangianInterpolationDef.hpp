@@ -393,7 +393,7 @@ LagrangianInterpolation<SpT>::getDofCoordsAndCoeffs(
     faceBasis->getDofCoeffs(Kokkos::subview(faceDofCoeffs, iface, dofRange, Kokkos::ALL()));
   }
 
-  typename Impl::RefCellParametrization<SpT>::subcellParamViewConstType faceParam;
+  typename Impl::RefCellParametrization<SpT>::ConstViewType faceParam;
   if(dim > 2)
     faceParam = Impl::RefCellParametrization<SpT>::getSubcellParametrization(2, topo.getKey());
 
