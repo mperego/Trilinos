@@ -97,7 +97,7 @@ hasReferenceParametrization( const unsigned cellTopoKey ) {
 
 template<typename DeviceType>
 inline
-typename RefCellParametrization<DeviceType>::subcellParamViewConstType
+typename RefCellParametrization<DeviceType>::ConstViewType
 RefCellParametrization<DeviceType>::
 getSubcellParametrization( const ordinal_type          subcellDim,
     const unsigned              parentCellKey ) {
@@ -105,7 +105,7 @@ getSubcellParametrization( const ordinal_type          subcellDim,
   INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !isSubcellParametrizationSet_, std::invalid_argument,
       ">>> ERROR (Intrepid2::CellTools::getSubcellParametrization): subcell parametrization is not set.");
 
-  subcellParamViewType subcellParam;
+  ViewType subcellParam;
 
   switch (parentCellKey ) {
   case shards::Tetrahedron<4>::key:
@@ -164,13 +164,13 @@ setSubcellParametrization() {
     const auto tet = shards::CellTopology(shards::getCellTopologyData<shards::Tetrahedron<4> >());
 
     subcellDim = 2;
-    tetFacesParam = subcellParamViewType("CellTools::SubcellParametrization::tetFaces", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
+    tetFacesParam = ViewType("CellTools::SubcellParametrization::tetFaces", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
     auto subcell2dParamHost = Kokkos::create_mirror_view(tetFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, tet );
     deep_copy(tetFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    tetEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::tetEdges", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
+    tetEdgesParam = ViewType("CellTools::SubcellParametrization::tetEdges", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(tetEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, tet );
     deep_copy(tetEdgesParam,subcellParamHost);
@@ -179,13 +179,13 @@ setSubcellParametrization() {
     const auto hex = shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<8> >());
 
     subcellDim = 2;
-    hexFacesParam = subcellParamViewType("CellTools::SubcellParametrization::hexFaces", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
+    hexFacesParam = ViewType("CellTools::SubcellParametrization::hexFaces", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
     auto subcell2dParamHost = Kokkos::create_mirror_view(hexFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, hex );
     deep_copy(hexFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    hexEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::hexEdges", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
+    hexEdgesParam = ViewType("CellTools::SubcellParametrization::hexEdges", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(hexEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, hex );
     deep_copy(hexEdgesParam,subcellParamHost);
@@ -194,13 +194,13 @@ setSubcellParametrization() {
     const auto pyr = shards::CellTopology(shards::getCellTopologyData<shards::Pyramid<5> >());
 
     subcellDim = 2;
-    pyrFacesParam = subcellParamViewType("CellTools::SubcellParametrization::pyrFaces", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
+    pyrFacesParam = ViewType("CellTools::SubcellParametrization::pyrFaces", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
     auto subcell2dParamHost = Kokkos::create_mirror_view(pyrFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, pyr );
     deep_copy(pyrFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    pyrEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::pyrEdges", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
+    pyrEdgesParam = ViewType("CellTools::SubcellParametrization::pyrEdges", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(pyrEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, pyr );
     deep_copy(pyrEdgesParam,subcellParamHost);
@@ -209,13 +209,13 @@ setSubcellParametrization() {
     const auto wedge = shards::CellTopology(shards::getCellTopologyData<shards::Wedge<6> >());
 
     subcellDim = 2;
-    wedgeFacesParam = subcellParamViewType("CellTools::SubcellParametrization::wedgeFaces", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
+    wedgeFacesParam = ViewType("CellTools::SubcellParametrization::wedgeFaces", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
     auto subcell2dParamHost = Kokkos::create_mirror_view(wedgeFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, wedge );
     deep_copy(wedgeFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    wedgeEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::wedgeEdges", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
+    wedgeEdgesParam = ViewType("CellTools::SubcellParametrization::wedgeEdges", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(wedgeEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, wedge );
     deep_copy(wedgeEdgesParam,subcellParamHost);
@@ -224,7 +224,7 @@ setSubcellParametrization() {
     const auto tri = shards::CellTopology(shards::getCellTopologyData<shards::Triangle<3> >());
 
     subcellDim = 1;
-    triEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::triEdges", tri.getSubcellCount(subcellDim), tri.getDimension(), subcellDim+1);
+    triEdgesParam = ViewType("CellTools::SubcellParametrization::triEdges", tri.getSubcellCount(subcellDim), tri.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(triEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, tri );
     deep_copy(triEdgesParam,subcellParamHost);
@@ -233,7 +233,7 @@ setSubcellParametrization() {
     const auto quad = shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<4> >());
 
     subcellDim = 1;
-    quadEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::quadEdges", quad.getSubcellCount(subcellDim), quad.getDimension(), subcellDim+1);
+    quadEdgesParam = ViewType("CellTools::SubcellParametrization::quadEdges", quad.getSubcellCount(subcellDim), quad.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(quadEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, quad );
     deep_copy(quadEdgesParam,subcellParamHost);
@@ -243,7 +243,7 @@ setSubcellParametrization() {
     const auto line = shards::CellTopology(shards::getCellTopologyData<shards::ShellLine<2> >());
 
     subcellDim = 1;
-    lineEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::lineEdges", line.getSubcellCount(subcellDim), line.getDimension(), subcellDim+1);
+    lineEdgesParam = ViewType("CellTools::SubcellParametrization::lineEdges", line.getSubcellCount(subcellDim), line.getDimension(), subcellDim+1);
     auto subcellParamHost = Kokkos::create_mirror_view(lineEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, line );
     deep_copy(lineEdgesParam,subcellParamHost);
@@ -251,22 +251,22 @@ setSubcellParametrization() {
   }
 
   Kokkos::push_finalize_hook( [=] {
-    dummyParam = subcellParamViewType();
-    lineEdgesParam = subcellParamViewType();
-    triEdgesParam = subcellParamViewType();
-    quadEdgesParam = subcellParamViewType();
-    shellTriEdgesParam = subcellParamViewType();
-    shellQuadEdgesParam = subcellParamViewType();
-    tetEdgesParam = subcellParamViewType();
-    hexEdgesParam = subcellParamViewType();
-    pyrEdgesParam = subcellParamViewType();
-    wedgeEdgesParam = subcellParamViewType();
-    shellTriFacesParam = subcellParamViewType();
-    shellQuadFacesParam = subcellParamViewType();
-    tetFacesParam = subcellParamViewType();
-    hexFacesParam = subcellParamViewType();
-    pyrFacesParam = subcellParamViewType();
-    wedgeFacesParam = subcellParamViewType();
+    dummyParam = ViewType();
+    lineEdgesParam = ViewType();
+    triEdgesParam = ViewType();
+    quadEdgesParam = ViewType();
+    shellTriEdgesParam = ViewType();
+    shellQuadEdgesParam = ViewType();
+    tetEdgesParam = ViewType();
+    hexEdgesParam = ViewType();
+    pyrEdgesParam = ViewType();
+    wedgeEdgesParam = ViewType();
+    shellTriFacesParam = ViewType();
+    shellQuadFacesParam = ViewType();
+    tetFacesParam = ViewType();
+    hexFacesParam = ViewType();
+    pyrFacesParam = ViewType();
+    wedgeFacesParam = ViewType();
   });
 
   isSubcellParametrizationSet_= true;
@@ -416,9 +416,9 @@ RefCellParametrization<DeviceType>::
 isSubcellParametrizationSet_ = false;
 
 #define DefineStaticRefParametrization(obj) template<typename DeviceType> \
-    typename RefCellParametrization<DeviceType>::subcellParamViewType \
+    typename RefCellParametrization<DeviceType>::ViewType \
     RefCellParametrization<DeviceType>:: \
-    obj = typename RefCellParametrization<DeviceType>::subcellParamViewType();
+    obj = typename RefCellParametrization<DeviceType>::ViewType();
 
 DefineStaticRefParametrization(dummyParam)
 DefineStaticRefParametrization(lineEdgesParam)
@@ -444,7 +444,7 @@ RefCellNodes<DeviceType>::
 setReferenceNodeData() {
 
   auto createDataViewFromHostArray = [](const std::string& view_name, double const * source_array, ordinal_type dim){
-    referenceNodeDataViewType dest_view(view_name, dim, 3);
+    ViewType dest_view(view_name, dim, 3);
     auto host_view = Kokkos::create_mirror_view(dest_view);
     for(ordinal_type i=0; i<dim; ++i)
       for(ordinal_type j=0; j<3; ++j)
@@ -487,33 +487,33 @@ setReferenceNodeData() {
 
   Kokkos::push_finalize_hook( [=] {
 
-    lineNodes           = referenceNodeDataViewType();
-    line3Nodes          = referenceNodeDataViewType();
+    lineNodes           = ViewType();
+    line3Nodes          = ViewType();
 
-    triangleNodes       = referenceNodeDataViewType();
-    triangle4Nodes      = referenceNodeDataViewType();
-    triangle6Nodes      = referenceNodeDataViewType();
+    triangleNodes       = ViewType();
+    triangle4Nodes      = ViewType();
+    triangle6Nodes      = ViewType();
 
-    quadrilateralNodes  = referenceNodeDataViewType();
-    quadrilateral8Nodes = referenceNodeDataViewType();
-    quadrilateral9Nodes = referenceNodeDataViewType();
+    quadrilateralNodes  = ViewType();
+    quadrilateral8Nodes = ViewType();
+    quadrilateral9Nodes = ViewType();
 
-    tetrahedronNodes    = referenceNodeDataViewType();
-    tetrahedron8Nodes   = referenceNodeDataViewType();
-    tetrahedron10Nodes  = referenceNodeDataViewType();
-    tetrahedron11Nodes  = referenceNodeDataViewType();
+    tetrahedronNodes    = ViewType();
+    tetrahedron8Nodes   = ViewType();
+    tetrahedron10Nodes  = ViewType();
+    tetrahedron11Nodes  = ViewType();
 
-    hexahedronNodes     = referenceNodeDataViewType();
-    hexahedron20Nodes   = referenceNodeDataViewType();
-    hexahedron27Nodes   = referenceNodeDataViewType();
+    hexahedronNodes     = ViewType();
+    hexahedron20Nodes   = ViewType();
+    hexahedron27Nodes   = ViewType();
 
-    pyramidNodes        = referenceNodeDataViewType();
-    pyramid13Nodes      = referenceNodeDataViewType();
-    pyramid14Nodes      = referenceNodeDataViewType();
+    pyramidNodes        = ViewType();
+    pyramid13Nodes      = ViewType();
+    pyramid14Nodes      = ViewType();
 
-    wedgeNodes          = referenceNodeDataViewType();
-    wedge15Nodes        = referenceNodeDataViewType();
-    wedge18Nodes        = referenceNodeDataViewType();
+    wedgeNodes          = ViewType();
+    wedge15Nodes        = ViewType();
+    wedge18Nodes        = ViewType();
   } );
 
   isReferenceNodeDataSet_ = true;
@@ -521,14 +521,14 @@ setReferenceNodeData() {
 
 template<typename DeviceType>
 inline
-typename RefCellNodes<DeviceType>::referenceNodeDataViewConstType
+typename RefCellNodes<DeviceType>::ConstViewType
 RefCellNodes<DeviceType>::
 getReferenceNodes(const unsigned      cellTopoKey){
 
   INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !isReferenceNodeDataSet_, std::invalid_argument,
       ">>> ERROR (Intrepid2::CellTools::getReferenceNodes): referenceNodeData not set. \nCall setReferenceNodeData() first.");
 
-  referenceNodeDataViewType refNodes;
+  ViewType refNodes;
 
   switch (cellTopoKey ) {
   case shards::Line<2>::key:
@@ -582,9 +582,9 @@ RefCellNodes<DeviceType>::
 isReferenceNodeDataSet_ = false;
 
 #define DefineStaticRefNodes(obj) template<typename DeviceType> \
-    typename RefCellNodes<DeviceType>::referenceNodeDataViewType \
+    typename RefCellNodes<DeviceType>::ViewType \
     RefCellNodes<DeviceType>:: \
-    obj = typename RefCellNodes<DeviceType>::referenceNodeDataViewType();
+    obj = typename RefCellNodes<DeviceType>::ViewType();
 
 DefineStaticRefNodes(lineNodes)
 DefineStaticRefNodes(line3Nodes)
@@ -722,8 +722,10 @@ RefCellCenter<DeviceType>::
 setReferenceCellCenterData() {
 
   auto createDataViewFromHostArray = [](const std::string& view_name, double const * source_array){
-    referenceNodeDataViewType dest_view(view_name, 3);
-    Kokkos::deep_copy(dest_view, referenceNodeDataConstViewHostType(source_array, 3));
+    ViewType dest_view(view_name, 3);
+    auto host_view = Kokkos::create_mirror_view(dest_view);
+    for(ordinal_type i=0; i<3; ++i) host_view[i] = source_array[i];
+    Kokkos::deep_copy(dest_view, host_view);
     return dest_view;
   };
 
@@ -747,19 +749,19 @@ setReferenceCellCenterData() {
 
   Kokkos::push_finalize_hook( [=] {
 
-    lineCenter            = referenceNodeDataViewType();
+    lineCenter            = ViewType();
 
-    triangleCenter        = referenceNodeDataViewType();
+    triangleCenter        = ViewType();
 
-    quadrilateralCenter   = referenceNodeDataViewType();
+    quadrilateralCenter   = ViewType();
 
-    tetrahedronCenter     = referenceNodeDataViewType();
+    tetrahedronCenter     = ViewType();
 
-    hexahedronCenter      = referenceNodeDataViewType();
+    hexahedronCenter      = ViewType();
 
-    pyramidCenter         = referenceNodeDataViewType();
+    pyramidCenter         = ViewType();
 
-    wedgeCenter           = referenceNodeDataViewType();
+    wedgeCenter           = ViewType();
   } );
 
   isReferenceCellCenterDataSet_ = true;
@@ -767,14 +769,14 @@ setReferenceCellCenterData() {
 
 template<typename DeviceType>
 inline
-typename RefCellCenter<DeviceType>::referenceNodeDataViewConstType
+typename RefCellCenter<DeviceType>::ConstViewType
 RefCellCenter<DeviceType>::
 getReferenceCellCenter(const unsigned      cellTopoKey){
 
   INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( !isReferenceCellCenterDataSet_, std::invalid_argument,
       ">>> ERROR (Intrepid2::CellTools::getReferenceNodes): referenceNodeData not set. \nCall setReferenceNodeData() first.");
 
-  referenceNodeDataViewType cellCenter;
+  ViewType cellCenter;
 
   switch (cellTopoKey ) {
   case shards::Line<2>::key:
@@ -828,9 +830,9 @@ RefCellCenter<DeviceType>::
 isReferenceCellCenterDataSet_ = false;
 
 #define DefineStaticRefCenter(obj) template<typename DeviceType> \
-    typename RefCellCenter<DeviceType>::referenceNodeDataViewType \
+    typename RefCellCenter<DeviceType>::ViewType \
     RefCellCenter<DeviceType>:: \
-    obj = typename RefCellCenter<DeviceType>::referenceNodeDataViewType();
+    obj = typename RefCellCenter<DeviceType>::ViewType();
 
 DefineStaticRefCenter(lineCenter)
 DefineStaticRefCenter(triangleCenter)

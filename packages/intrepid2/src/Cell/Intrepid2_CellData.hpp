@@ -71,11 +71,11 @@ namespace Impl {
 
 template<typename DeviceType>
 class RefCellParametrization {
+public:
   using ExecSpaceType = typename DeviceType::execution_space;
   using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
-public:
-  typedef Kokkos::DynRankView<double,DeviceType> subcellParamViewType;
-  typedef Kokkos::DynRankView<const double,DeviceType> subcellParamViewConstType;
+  using ViewType = Kokkos::DynRankView<double,DeviceType>;
+  using ConstViewType = Kokkos::DynRankView<const double,DeviceType>;
 
 
   KOKKOS_INLINE_FUNCTION
@@ -127,7 +127,7 @@ public:
   static void setSubcellParametrization();
 
   static inline
-  subcellParamViewConstType
+  ConstViewType
   getSubcellParametrization( const ordinal_type          subcellDim,
       const unsigned              parentCellKey );
 
@@ -153,13 +153,13 @@ private:
       \brief Parametrization coefficients of edges and faces of reference cells
    */
 
-  static subcellParamViewType dummyParam;
-  static subcellParamViewType lineEdgesParam;  // edge maps for 2d non-standard cells; shell line and beam
-  static subcellParamViewType triEdgesParam, quadEdgesParam; // edge maps for 2d standard cells
-  static subcellParamViewType shellTriEdgesParam, shellQuadEdgesParam; // edge maps for 3d non-standard cells; shell tri and quad
-  static subcellParamViewType tetEdgesParam, hexEdgesParam, pyrEdgesParam, wedgeEdgesParam; // edge maps for 3d standard cells
-  static subcellParamViewType shellTriFacesParam, shellQuadFacesParam; // face maps for 3d non-standard cells
-  static subcellParamViewType tetFacesParam, hexFacesParam, pyrFacesParam, wedgeFacesParam; // face maps for 3d standard cells
+  static ViewType dummyParam;
+  static ViewType lineEdgesParam;  // edge maps for 2d non-standard cells; shell line and beam
+  static ViewType triEdgesParam, quadEdgesParam; // edge maps for 2d standard cells
+  static ViewType shellTriEdgesParam, shellQuadEdgesParam; // edge maps for 3d non-standard cells; shell tri and quad
+  static ViewType tetEdgesParam, hexEdgesParam, pyrEdgesParam, wedgeEdgesParam; // edge maps for 3d standard cells
+  static ViewType shellTriFacesParam, shellQuadFacesParam; // face maps for 3d non-standard cells
+  static ViewType tetFacesParam, hexFacesParam, pyrFacesParam, wedgeFacesParam; // face maps for 3d standard cells
 
   static bool isSubcellParametrizationSet_;
 
@@ -169,12 +169,9 @@ private:
 template<typename DeviceType>
 class RefCellNodes {
   using ExecSpaceType = typename DeviceType::execution_space;
-  using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
 public:
-  typedef Kokkos::DynRankView<double,DeviceType> referenceNodeDataViewType;
-  typedef Kokkos::DynRankView<const double,DeviceType> referenceNodeDataViewConstType;
-  typedef Kokkos::DynRankView<const double,HostSpaceType> referenceNodeDataConstViewHostType;
-
+  typedef Kokkos::DynRankView<double,DeviceType> ViewType;
+  typedef Kokkos::DynRankView<const double,DeviceType> ConstViewType;
 
   /** \brief  Default constructor.
    */
@@ -202,7 +199,7 @@ public:
     \param  cell              [in]  - key of the cell topology
    */
   static inline
-  referenceNodeDataViewConstType
+  ConstViewType
   getReferenceNodes(const unsigned      cellTopoKey);
 
 private:
@@ -210,13 +207,13 @@ private:
   /** \struct Intrepid2::Impl::CellData::ReferenceNodeData
     \brief Reference node data for each supported topology
    */
-    static referenceNodeDataViewType lineNodes, line3Nodes;
-    static referenceNodeDataViewType triangleNodes, triangle4Nodes, triangle6Nodes;
-    static referenceNodeDataViewType quadrilateralNodes, quadrilateral8Nodes, quadrilateral9Nodes;
-    static referenceNodeDataViewType tetrahedronNodes, tetrahedron8Nodes, tetrahedron10Nodes, tetrahedron11Nodes;
-    static referenceNodeDataViewType hexahedronNodes, hexahedron20Nodes, hexahedron27Nodes;
-    static referenceNodeDataViewType pyramidNodes, pyramid13Nodes, pyramid14Nodes;
-    static referenceNodeDataViewType wedgeNodes, wedge15Nodes, wedge18Nodes;
+    static ViewType lineNodes, line3Nodes;
+    static ViewType triangleNodes, triangle4Nodes, triangle6Nodes;
+    static ViewType quadrilateralNodes, quadrilateral8Nodes, quadrilateral9Nodes;
+    static ViewType tetrahedronNodes, tetrahedron8Nodes, tetrahedron10Nodes, tetrahedron11Nodes;
+    static ViewType hexahedronNodes, hexahedron20Nodes, hexahedron27Nodes;
+    static ViewType pyramidNodes, pyramid13Nodes, pyramid14Nodes;
+    static ViewType wedgeNodes, wedge15Nodes, wedge18Nodes;
 
   // reference nodes initialized
   /** \struct Intrepid2::CellTools::ReferenceNodeDataStatic
@@ -241,11 +238,9 @@ private:
 template<typename DeviceType>
 class RefCellCenter {
   using ExecSpaceType = typename DeviceType::execution_space;
-  using HostSpaceType = typename Kokkos::Impl::is_space<DeviceType>::host_mirror_space::execution_space;
 public:
-  typedef Kokkos::DynRankView<double,DeviceType> referenceNodeDataViewType;
-  typedef Kokkos::DynRankView<const double,DeviceType> referenceNodeDataViewConstType;
-  typedef Kokkos::DynRankView<const double,HostSpaceType> referenceNodeDataConstViewHostType;
+  typedef Kokkos::DynRankView<double,DeviceType> ViewType;
+  typedef Kokkos::DynRankView<const double,DeviceType> ConstViewType;
 
 
   /** \brief  Default constructor.
@@ -275,18 +270,18 @@ public:
     \param  cell              [in]  - key of the cell topology
    */
   static inline
-  referenceNodeDataViewConstType
+  ConstViewType
   getReferenceCellCenter(const unsigned      cellTopoKey);
 
 private:
 
-  static referenceNodeDataViewType lineCenter;
-  static referenceNodeDataViewType triangleCenter;
-  static referenceNodeDataViewType quadrilateralCenter;
-  static referenceNodeDataViewType tetrahedronCenter;
-  static referenceNodeDataViewType hexahedronCenter;
-  static referenceNodeDataViewType pyramidCenter;
-  static referenceNodeDataViewType wedgeCenter;
+  static ViewType lineCenter;
+  static ViewType triangleCenter;
+  static ViewType quadrilateralCenter;
+  static ViewType tetrahedronCenter;
+  static ViewType hexahedronCenter;
+  static ViewType pyramidCenter;
+  static ViewType wedgeCenter;
 
   struct ReferenceCenterDataStatic {
     double line[3];
