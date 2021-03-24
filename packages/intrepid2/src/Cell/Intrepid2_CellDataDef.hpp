@@ -111,39 +111,39 @@ getSubcellParametrization( const ordinal_type          subcellDim,
   case shards::Tetrahedron<4>::key:
   case shards::Tetrahedron<8>::key:
   case shards::Tetrahedron<10>::key:
-  case shards::Tetrahedron<11>::key:       subcellParam = ( subcellDim == 2 ? subcellParamData_.tetFaces : subcellParamData_.tetEdges ); break;
+  case shards::Tetrahedron<11>::key:       subcellParam = ( subcellDim == 2 ? tetFacesParam : tetEdgesParam ); break;
 
   case shards::Hexahedron<8>::key:
   case shards::Hexahedron<20>::key:
-  case shards::Hexahedron<27>::key:        subcellParam = ( subcellDim == 2 ? subcellParamData_.hexFaces : subcellParamData_.hexEdges ); break;
+  case shards::Hexahedron<27>::key:        subcellParam = ( subcellDim == 2 ? hexFacesParam : hexEdgesParam ); break;
 
   case shards::Pyramid<5>::key:
   case shards::Pyramid<13>::key:
-  case shards::Pyramid<14>::key:           subcellParam = ( subcellDim == 2 ? subcellParamData_.pyrFaces : subcellParamData_.pyrEdges ); break;
+  case shards::Pyramid<14>::key:           subcellParam = ( subcellDim == 2 ? pyrFacesParam : pyrEdgesParam ); break;
 
   case shards::Wedge<6>::key:
   case shards::Wedge<15>::key:
-  case shards::Wedge<18>::key:             subcellParam = ( subcellDim == 2 ? subcellParamData_.wedgeFaces : subcellParamData_.wedgeEdges ); break;
+  case shards::Wedge<18>::key:             subcellParam = ( subcellDim == 2 ? wedgeFacesParam : wedgeEdgesParam ); break;
 
   case shards::Triangle<3>::key:
   case shards::Triangle<4>::key:
-  case shards::Triangle<6>::key:           subcellParam = subcellParamData_.triEdges; break;
+  case shards::Triangle<6>::key:           subcellParam = triEdgesParam; break;
 
   case shards::Quadrilateral<4>::key:
   case shards::Quadrilateral<8>::key:
-  case shards::Quadrilateral<9>::key:      subcellParam = subcellParamData_.quadEdges; break;
+  case shards::Quadrilateral<9>::key:      subcellParam = quadEdgesParam; break;
 
   // case shards::ShellTriangle<3>::key:
-  // case shards::ShellTriangle<6>::key:      subcellParam = ( subcellDim == 2 ? subcellParamData_.shellTriFaces : subcellParamData_.shellTriEdges ); break;
+  // case shards::ShellTriangle<6>::key:      subcellParam = ( subcellDim == 2 ? shellTriFacesParam : shellTriEdgesParam ); break;
 
   // case shards::ShellQuadrilateral<4>::key:
   // case shards::ShellQuadrilateral<8>::key:
-  // case shards::ShellQuadrilateral<9>::key: subcellParam = ( subcellDim == 2 ? subcellParamData_.shellQuadFaces : subcellParamData_.shellQuadEdges ); break;
+  // case shards::ShellQuadrilateral<9>::key: subcellParam = ( subcellDim == 2 ? shellQuadFacesParam : shellQuadEdgesParam ); break;
 
   case shards::ShellLine<2>::key:
   case shards::ShellLine<3>::key:
   case shards::Beam<2>::key:
-  case shards::Beam<3>::key:               subcellParam = subcellParamData_.lineEdges; break;
+  case shards::Beam<3>::key:               subcellParam = lineEdgesParam; break;
   default: {
     INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::invalid_argument,
         ">>> ERROR (Intrepid2::CellTools::getSubcellParametrization): invalid cell topology.");
@@ -164,109 +164,109 @@ setSubcellParametrization() {
     const auto tet = shards::CellTopology(shards::getCellTopologyData<shards::Tetrahedron<4> >());
 
     subcellDim = 2;
-    subcellParamData_.tetFaces = subcellParamViewType("CellTools::SubcellParametrization::tetFaces", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
-    auto subcell2dParamHost = Kokkos::create_mirror_view(subcellParamData_.tetFaces);
+    tetFacesParam = subcellParamViewType("CellTools::SubcellParametrization::tetFaces", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
+    auto subcell2dParamHost = Kokkos::create_mirror_view(tetFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, tet );
-    deep_copy(subcellParamData_.tetFaces,subcell2dParamHost);
+    deep_copy(tetFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    subcellParamData_.tetEdges = subcellParamViewType("CellTools::SubcellParametrization::tetEdges", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.tetEdges);
+    tetEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::tetEdges", tet.getSubcellCount(subcellDim), tet.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(tetEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, tet );
-    deep_copy(subcellParamData_.tetEdges,subcellParamHost);
+    deep_copy(tetEdgesParam,subcellParamHost);
   }
   {
     const auto hex = shards::CellTopology(shards::getCellTopologyData<shards::Hexahedron<8> >());
 
     subcellDim = 2;
-    subcellParamData_.hexFaces = subcellParamViewType("CellTools::SubcellParametrization::hexFaces", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
-    auto subcell2dParamHost = Kokkos::create_mirror_view(subcellParamData_.hexFaces);
+    hexFacesParam = subcellParamViewType("CellTools::SubcellParametrization::hexFaces", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
+    auto subcell2dParamHost = Kokkos::create_mirror_view(hexFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, hex );
-    deep_copy(subcellParamData_.hexFaces,subcell2dParamHost);
+    deep_copy(hexFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    subcellParamData_.hexEdges = subcellParamViewType("CellTools::SubcellParametrization::hexEdges", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.hexEdges);
+    hexEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::hexEdges", hex.getSubcellCount(subcellDim), hex.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(hexEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, hex );
-    deep_copy(subcellParamData_.hexEdges,subcellParamHost);
+    deep_copy(hexEdgesParam,subcellParamHost);
   }
   {
     const auto pyr = shards::CellTopology(shards::getCellTopologyData<shards::Pyramid<5> >());
 
     subcellDim = 2;
-    subcellParamData_.pyrFaces = subcellParamViewType("CellTools::SubcellParametrization::pyrFaces", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
-    auto subcell2dParamHost = Kokkos::create_mirror_view(subcellParamData_.pyrFaces);
+    pyrFacesParam = subcellParamViewType("CellTools::SubcellParametrization::pyrFaces", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
+    auto subcell2dParamHost = Kokkos::create_mirror_view(pyrFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, pyr );
-    deep_copy(subcellParamData_.pyrFaces,subcell2dParamHost);
+    deep_copy(pyrFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    subcellParamData_.pyrEdges = subcellParamViewType("CellTools::SubcellParametrization::pyrEdges", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.pyrEdges);
+    pyrEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::pyrEdges", pyr.getSubcellCount(subcellDim), pyr.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(pyrEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, pyr );
-    deep_copy(subcellParamData_.pyrEdges,subcellParamHost);
+    deep_copy(pyrEdgesParam,subcellParamHost);
   }
   {
     const auto wedge = shards::CellTopology(shards::getCellTopologyData<shards::Wedge<6> >());
 
     subcellDim = 2;
-    subcellParamData_.wedgeFaces = subcellParamViewType("CellTools::SubcellParametrization::wedgeFaces", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
-    auto subcell2dParamHost = Kokkos::create_mirror_view(subcellParamData_.wedgeFaces);
+    wedgeFacesParam = subcellParamViewType("CellTools::SubcellParametrization::wedgeFaces", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
+    auto subcell2dParamHost = Kokkos::create_mirror_view(wedgeFacesParam);
     setSubcellParametrization( subcell2dParamHost, subcellDim, wedge );
-    deep_copy(subcellParamData_.wedgeFaces,subcell2dParamHost);
+    deep_copy(wedgeFacesParam,subcell2dParamHost);
 
     subcellDim = 1;
-    subcellParamData_.wedgeEdges = subcellParamViewType("CellTools::SubcellParametrization::wedgeEdges", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.wedgeEdges);
+    wedgeEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::wedgeEdges", wedge.getSubcellCount(subcellDim), wedge.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(wedgeEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, wedge );
-    deep_copy(subcellParamData_.wedgeEdges,subcellParamHost);
+    deep_copy(wedgeEdgesParam,subcellParamHost);
   }
   {
     const auto tri = shards::CellTopology(shards::getCellTopologyData<shards::Triangle<3> >());
 
     subcellDim = 1;
-    subcellParamData_.triEdges = subcellParamViewType("CellTools::SubcellParametrization::triEdges", tri.getSubcellCount(subcellDim), tri.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.triEdges);
+    triEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::triEdges", tri.getSubcellCount(subcellDim), tri.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(triEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, tri );
-    deep_copy(subcellParamData_.triEdges,subcellParamHost);
+    deep_copy(triEdgesParam,subcellParamHost);
   }
   {
     const auto quad = shards::CellTopology(shards::getCellTopologyData<shards::Quadrilateral<4> >());
 
     subcellDim = 1;
-    subcellParamData_.quadEdges = subcellParamViewType("CellTools::SubcellParametrization::quadEdges", quad.getSubcellCount(subcellDim), quad.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.quadEdges);
+    quadEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::quadEdges", quad.getSubcellCount(subcellDim), quad.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(quadEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, quad );
-    deep_copy(subcellParamData_.quadEdges,subcellParamHost);
+    deep_copy(quadEdgesParam,subcellParamHost);
 
   }
   {
     const auto line = shards::CellTopology(shards::getCellTopologyData<shards::ShellLine<2> >());
 
     subcellDim = 1;
-    subcellParamData_.lineEdges = subcellParamViewType("CellTools::SubcellParametrization::lineEdges", line.getSubcellCount(subcellDim), line.getDimension(), subcellDim+1);
-    auto subcellParamHost = Kokkos::create_mirror_view(subcellParamData_.lineEdges);
+    lineEdgesParam = subcellParamViewType("CellTools::SubcellParametrization::lineEdges", line.getSubcellCount(subcellDim), line.getDimension(), subcellDim+1);
+    auto subcellParamHost = Kokkos::create_mirror_view(lineEdgesParam);
     setSubcellParametrization( subcellParamHost, subcellDim, line );
-    deep_copy(subcellParamData_.lineEdges,subcellParamHost);
+    deep_copy(lineEdgesParam,subcellParamHost);
 
   }
 
   Kokkos::push_finalize_hook( [=] {
-    subcellParamData_.dummy = subcellParamViewType();
-    subcellParamData_.lineEdges = subcellParamViewType();
-    subcellParamData_.triEdges = subcellParamViewType();
-    subcellParamData_.quadEdges = subcellParamViewType();
-    subcellParamData_.shellTriEdges = subcellParamViewType();
-    subcellParamData_.shellQuadEdges = subcellParamViewType();
-    subcellParamData_.tetEdges = subcellParamViewType();
-    subcellParamData_.hexEdges = subcellParamViewType();
-    subcellParamData_.pyrEdges = subcellParamViewType();
-    subcellParamData_.wedgeEdges = subcellParamViewType();
-    subcellParamData_.shellTriFaces = subcellParamViewType();
-    subcellParamData_.shellQuadFaces = subcellParamViewType();
-    subcellParamData_.tetFaces = subcellParamViewType();
-    subcellParamData_.hexFaces = subcellParamViewType();
-    subcellParamData_.pyrFaces = subcellParamViewType();
-    subcellParamData_.wedgeFaces = subcellParamViewType();
+    dummyParam = subcellParamViewType();
+    lineEdgesParam = subcellParamViewType();
+    triEdgesParam = subcellParamViewType();
+    quadEdgesParam = subcellParamViewType();
+    shellTriEdgesParam = subcellParamViewType();
+    shellQuadEdgesParam = subcellParamViewType();
+    tetEdgesParam = subcellParamViewType();
+    hexEdgesParam = subcellParamViewType();
+    pyrEdgesParam = subcellParamViewType();
+    wedgeEdgesParam = subcellParamViewType();
+    shellTriFacesParam = subcellParamViewType();
+    shellQuadFacesParam = subcellParamViewType();
+    tetFacesParam = subcellParamViewType();
+    hexFacesParam = subcellParamViewType();
+    pyrFacesParam = subcellParamViewType();
+    wedgeFacesParam = subcellParamViewType();
   });
 
   isSubcellParametrizationSet_= true;
@@ -415,10 +415,28 @@ bool
 RefCellParametrization<DeviceType>::
 isSubcellParametrizationSet_ = false;
 
-template<typename DeviceType>
-typename RefCellParametrization<DeviceType>::SubcellParamData
-RefCellParametrization<DeviceType>::
-subcellParamData_ = typename RefCellParametrization<DeviceType>::SubcellParamData();
+#define DefineStaticRefParametrization(obj) template<typename DeviceType> \
+    typename RefCellParametrization<DeviceType>::subcellParamViewType \
+    RefCellParametrization<DeviceType>:: \
+    obj = typename RefCellParametrization<DeviceType>::subcellParamViewType();
+
+DefineStaticRefParametrization(dummyParam)
+DefineStaticRefParametrization(lineEdgesParam)
+DefineStaticRefParametrization(triEdgesParam)
+DefineStaticRefParametrization(quadEdgesParam)
+DefineStaticRefParametrization(shellTriEdgesParam)
+DefineStaticRefParametrization(shellQuadEdgesParam)
+DefineStaticRefParametrization(tetEdgesParam)
+DefineStaticRefParametrization(hexEdgesParam)
+DefineStaticRefParametrization(pyrEdgesParam)
+DefineStaticRefParametrization(wedgeEdgesParam)
+DefineStaticRefParametrization(shellTriFacesParam)
+DefineStaticRefParametrization(shellQuadFacesParam)
+DefineStaticRefParametrization(tetFacesParam)
+DefineStaticRefParametrization(hexFacesParam)
+DefineStaticRefParametrization(pyrFacesParam)
+DefineStaticRefParametrization(wedgeFacesParam)
+
 
 template<typename DeviceType>
 void
@@ -438,64 +456,64 @@ setReferenceNodeData() {
   if(isReferenceNodeDataSet_) return;
   {
     // create memory on devices
-    refNodeData_.line            = createDataViewFromHostArray("CellTools::ReferenceNodeData::line", &refNodeDataStatic_.line[0][0], 2);
-    refNodeData_.line_3          = createDataViewFromHostArray("CellTools::ReferenceNodeData::line_3", &refNodeDataStatic_.line_3[0][0], 3);
+    lineNodes           = createDataViewFromHostArray("CellTools::ReferenceNodeData::line", &refNodeDataStatic_.line[0][0], 2);
+    line3Nodes          = createDataViewFromHostArray("CellTools::ReferenceNodeData::line_3", &refNodeDataStatic_.line_3[0][0], 3);
 
-    refNodeData_.triangle        = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle", &refNodeDataStatic_.triangle[0][0], 3);
-    refNodeData_.triangle_4      = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle_4", &refNodeDataStatic_.triangle_4[0][0], 4);
-    refNodeData_.triangle_6      = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle_6", &refNodeDataStatic_.triangle_6[0][0], 6);
+    triangleNodes       = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle", &refNodeDataStatic_.triangle[0][0], 3);
+    triangle4Nodes      = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle_4", &refNodeDataStatic_.triangle_4[0][0], 4);
+    triangle6Nodes      = createDataViewFromHostArray("CellTools::ReferenceNodeData::triangle_6", &refNodeDataStatic_.triangle_6[0][0], 6);
 
-    refNodeData_.quadrilateral   = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad", &refNodeDataStatic_.quadrilateral[0][0], 4);
-    refNodeData_.quadrilateral_8 = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad_8", &refNodeDataStatic_.quadrilateral_8[0][0], 8);
-    refNodeData_.quadrilateral_9 = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad_9", &refNodeDataStatic_.quadrilateral_9[0][0], 9);
+    quadrilateralNodes  = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad", &refNodeDataStatic_.quadrilateral[0][0], 4);
+    quadrilateral8Nodes = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad_8", &refNodeDataStatic_.quadrilateral_8[0][0], 8);
+    quadrilateral9Nodes = createDataViewFromHostArray("CellTools::ReferenceNodeData::quad_9", &refNodeDataStatic_.quadrilateral_9[0][0], 9);
 
-    refNodeData_.tetrahedron     = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet", &refNodeDataStatic_.tetrahedron[0][0], 4);
-    refNodeData_.tetrahedron_8   = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_8", &refNodeDataStatic_.tetrahedron_8[0][0], 8);
-    refNodeData_.tetrahedron_10  = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_10", &refNodeDataStatic_.tetrahedron_10[0][0], 10);
-    refNodeData_.tetrahedron_11  = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_11", &refNodeDataStatic_.tetrahedron_11[0][0], 11);
+    tetrahedronNodes    = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet", &refNodeDataStatic_.tetrahedron[0][0], 4);
+    tetrahedron8Nodes   = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_8", &refNodeDataStatic_.tetrahedron_8[0][0], 8);
+    tetrahedron10Nodes  = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_10", &refNodeDataStatic_.tetrahedron_10[0][0], 10);
+    tetrahedron11Nodes  = createDataViewFromHostArray("CellTools::ReferenceNodeData::tet_11", &refNodeDataStatic_.tetrahedron_11[0][0], 11);
 
-    refNodeData_.hexahedron      = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex", &refNodeDataStatic_.hexahedron[0][0], 8);
-    refNodeData_.hexahedron_20   = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex_20", &refNodeDataStatic_.hexahedron_20[0][0], 20);
-    refNodeData_.hexahedron_27   = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex_27", &refNodeDataStatic_.hexahedron_27[0][0], 27);
+    hexahedronNodes     = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex", &refNodeDataStatic_.hexahedron[0][0], 8);
+    hexahedron20Nodes   = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex_20", &refNodeDataStatic_.hexahedron_20[0][0], 20);
+    hexahedron27Nodes   = createDataViewFromHostArray("CellTools::ReferenceNodeData::hex_27", &refNodeDataStatic_.hexahedron_27[0][0], 27);
 
-    refNodeData_.pyramid         = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr", &refNodeDataStatic_.pyramid[0][0], 5);
-    refNodeData_.pyramid_13      = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr_13", &refNodeDataStatic_.pyramid_13[0][0], 13);
-    refNodeData_.pyramid_14      = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr_14", &refNodeDataStatic_.pyramid_14[0][0], 14);
+    pyramidNodes        = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr", &refNodeDataStatic_.pyramid[0][0], 5);
+    pyramid13Nodes      = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr_13", &refNodeDataStatic_.pyramid_13[0][0], 13);
+    pyramid14Nodes      = createDataViewFromHostArray("CellTools::ReferenceNodeData::pyr_14", &refNodeDataStatic_.pyramid_14[0][0], 14);
 
-    refNodeData_.wedge           = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge", &refNodeDataStatic_.wedge[0][0], 6);
-    refNodeData_.wedge_15        = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge_15", &refNodeDataStatic_.wedge_15[0][0], 15);
-    refNodeData_.wedge_18        = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge_18", &refNodeDataStatic_.wedge_18[0][0], 18);
+    wedgeNodes          = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge", &refNodeDataStatic_.wedge[0][0], 6);
+    wedge15Nodes        = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge_15", &refNodeDataStatic_.wedge_15[0][0], 15);
+    wedge18Nodes        = createDataViewFromHostArray("CellTools::ReferenceNodeData::wedge_18", &refNodeDataStatic_.wedge_18[0][0], 18);
   }
 
   Kokkos::push_finalize_hook( [=] {
 
-    refNodeData_.line            = referenceNodeDataViewType();
-    refNodeData_.line_3          = referenceNodeDataViewType();
+    lineNodes           = referenceNodeDataViewType();
+    line3Nodes          = referenceNodeDataViewType();
 
-    refNodeData_.triangle        = referenceNodeDataViewType();
-    refNodeData_.triangle_4      = referenceNodeDataViewType();
-    refNodeData_.triangle_6      = referenceNodeDataViewType();
+    triangleNodes       = referenceNodeDataViewType();
+    triangle4Nodes      = referenceNodeDataViewType();
+    triangle6Nodes      = referenceNodeDataViewType();
 
-    refNodeData_.quadrilateral   = referenceNodeDataViewType();
-    refNodeData_.quadrilateral_8 = referenceNodeDataViewType();
-    refNodeData_.quadrilateral_9 = referenceNodeDataViewType();
+    quadrilateralNodes  = referenceNodeDataViewType();
+    quadrilateral8Nodes = referenceNodeDataViewType();
+    quadrilateral9Nodes = referenceNodeDataViewType();
 
-    refNodeData_.tetrahedron     = referenceNodeDataViewType();
-    refNodeData_.tetrahedron_8   = referenceNodeDataViewType();
-    refNodeData_.tetrahedron_10  = referenceNodeDataViewType();
-    refNodeData_.tetrahedron_11  = referenceNodeDataViewType();
+    tetrahedronNodes    = referenceNodeDataViewType();
+    tetrahedron8Nodes   = referenceNodeDataViewType();
+    tetrahedron10Nodes  = referenceNodeDataViewType();
+    tetrahedron11Nodes  = referenceNodeDataViewType();
 
-    refNodeData_.hexahedron      = referenceNodeDataViewType();
-    refNodeData_.hexahedron_20   = referenceNodeDataViewType();
-    refNodeData_.hexahedron_27   = referenceNodeDataViewType();
+    hexahedronNodes     = referenceNodeDataViewType();
+    hexahedron20Nodes   = referenceNodeDataViewType();
+    hexahedron27Nodes   = referenceNodeDataViewType();
 
-    refNodeData_.pyramid         = referenceNodeDataViewType();
-    refNodeData_.pyramid_13      = referenceNodeDataViewType();
-    refNodeData_.pyramid_14      = referenceNodeDataViewType();
+    pyramidNodes        = referenceNodeDataViewType();
+    pyramid13Nodes      = referenceNodeDataViewType();
+    pyramid14Nodes      = referenceNodeDataViewType();
 
-    refNodeData_.wedge           = referenceNodeDataViewType();
-    refNodeData_.wedge_15        = referenceNodeDataViewType();
-    refNodeData_.wedge_18        = referenceNodeDataViewType();
+    wedgeNodes          = referenceNodeDataViewType();
+    wedge15Nodes        = referenceNodeDataViewType();
+    wedge18Nodes        = referenceNodeDataViewType();
   } );
 
   isReferenceNodeDataSet_ = true;
@@ -515,40 +533,40 @@ getReferenceNodes(const unsigned      cellTopoKey){
   switch (cellTopoKey ) {
   case shards::Line<2>::key:
   case shards::ShellLine<2>::key:
-  case shards::Beam<2>::key:               refNodes = refNodeData_.line; break;
+  case shards::Beam<2>::key:               refNodes = lineNodes; break;
   case shards::Line<3>::key:
   case shards::ShellLine<3>::key:
-  case shards::Beam<3>::key:               refNodes = refNodeData_.line_3; break;
+  case shards::Beam<3>::key:               refNodes = line3Nodes; break;
 
   case shards::Triangle<3>::key:
-  case shards::ShellTriangle<3>::key:      refNodes = refNodeData_.triangle; break;
-  case shards::Triangle<4>::key:           refNodes = refNodeData_.triangle_4; break;
+  case shards::ShellTriangle<3>::key:      refNodes = triangleNodes; break;
+  case shards::Triangle<4>::key:           refNodes = triangle4Nodes; break;
   case shards::Triangle<6>::key:
-  case shards::ShellTriangle<6>::key:      refNodes = refNodeData_.triangle_6; break;
+  case shards::ShellTriangle<6>::key:      refNodes = triangle6Nodes; break;
 
   case shards::Quadrilateral<4>::key:
-  case shards::ShellQuadrilateral<4>::key: refNodes = refNodeData_.quadrilateral; break;
+  case shards::ShellQuadrilateral<4>::key: refNodes = quadrilateralNodes; break;
   case shards::Quadrilateral<8>::key:
-  case shards::ShellQuadrilateral<8>::key: refNodes = refNodeData_.quadrilateral_8; break;
+  case shards::ShellQuadrilateral<8>::key: refNodes = quadrilateral8Nodes; break;
   case shards::Quadrilateral<9>::key:
-  case shards::ShellQuadrilateral<9>::key: refNodes = refNodeData_.quadrilateral_9; break;
+  case shards::ShellQuadrilateral<9>::key: refNodes = quadrilateral9Nodes; break;
 
-  case shards::Tetrahedron<4>::key:        refNodes = refNodeData_.tetrahedron; break;
-  case shards::Tetrahedron<8>::key:        refNodes = refNodeData_.tetrahedron_8; break;
-  case shards::Tetrahedron<10>::key:       refNodes = refNodeData_.tetrahedron_10; break;
-  case shards::Tetrahedron<11>::key:       refNodes = refNodeData_.tetrahedron_11; break;
+  case shards::Tetrahedron<4>::key:        refNodes = tetrahedronNodes; break;
+  case shards::Tetrahedron<8>::key:        refNodes = tetrahedron8Nodes; break;
+  case shards::Tetrahedron<10>::key:       refNodes = tetrahedron10Nodes; break;
+  case shards::Tetrahedron<11>::key:       refNodes = tetrahedron11Nodes; break;
 
-  case shards::Hexahedron<8>::key:         refNodes = refNodeData_.hexahedron; break;
-  case shards::Hexahedron<20>::key:        refNodes = refNodeData_.hexahedron_20; break;
-  case shards::Hexahedron<27>::key:        refNodes = refNodeData_.hexahedron_27; break;
+  case shards::Hexahedron<8>::key:         refNodes = hexahedronNodes; break;
+  case shards::Hexahedron<20>::key:        refNodes = hexahedron20Nodes; break;
+  case shards::Hexahedron<27>::key:        refNodes = hexahedron27Nodes; break;
 
-  case shards::Pyramid<5>::key:            refNodes = refNodeData_.pyramid; break;
-  case shards::Pyramid<13>::key:           refNodes = refNodeData_.pyramid_13; break;
-  case shards::Pyramid<14>::key:           refNodes = refNodeData_.pyramid_14; break;
+  case shards::Pyramid<5>::key:            refNodes = pyramidNodes; break;
+  case shards::Pyramid<13>::key:           refNodes = pyramid13Nodes; break;
+  case shards::Pyramid<14>::key:           refNodes = pyramid14Nodes; break;
 
-  case shards::Wedge<6>::key:              refNodes = refNodeData_.wedge; break;
-  case shards::Wedge<15>::key:             refNodes = refNodeData_.wedge_15; break;
-  case shards::Wedge<18>::key:             refNodes = refNodeData_.wedge_18; break;
+  case shards::Wedge<6>::key:              refNodes = wedgeNodes; break;
+  case shards::Wedge<15>::key:             refNodes = wedge15Nodes; break;
+  case shards::Wedge<18>::key:             refNodes = wedge18Nodes; break;
 
   default: {
     INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::invalid_argument,
@@ -563,10 +581,38 @@ bool
 RefCellNodes<DeviceType>::
 isReferenceNodeDataSet_ = false;
 
-template<typename DeviceType>
-typename RefCellNodes<DeviceType>::ReferenceNodeData
-RefCellNodes<DeviceType>::
-refNodeData_ = typename RefCellNodes<DeviceType>::ReferenceNodeData();
+#define DefineStaticRefNodes(obj) template<typename DeviceType> \
+    typename RefCellNodes<DeviceType>::referenceNodeDataViewType \
+    RefCellNodes<DeviceType>:: \
+    obj = typename RefCellNodes<DeviceType>::referenceNodeDataViewType();
+
+DefineStaticRefNodes(lineNodes)
+DefineStaticRefNodes(line3Nodes)
+
+DefineStaticRefNodes(triangleNodes)
+DefineStaticRefNodes(triangle4Nodes)
+DefineStaticRefNodes(triangle6Nodes)
+
+DefineStaticRefNodes(quadrilateralNodes)
+DefineStaticRefNodes(quadrilateral8Nodes)
+DefineStaticRefNodes(quadrilateral9Nodes)
+
+DefineStaticRefNodes(tetrahedronNodes)
+DefineStaticRefNodes(tetrahedron8Nodes)
+DefineStaticRefNodes(tetrahedron10Nodes)
+DefineStaticRefNodes(tetrahedron11Nodes)
+
+DefineStaticRefNodes(hexahedronNodes)
+DefineStaticRefNodes(hexahedron20Nodes)
+DefineStaticRefNodes(hexahedron27Nodes)
+
+DefineStaticRefNodes(pyramidNodes)
+DefineStaticRefNodes(pyramid13Nodes)
+DefineStaticRefNodes(pyramid14Nodes)
+
+DefineStaticRefNodes(wedgeNodes)
+DefineStaticRefNodes(wedge15Nodes)
+DefineStaticRefNodes(wedge18Nodes)
 
 template<typename DeviceType>
 const typename RefCellNodes<DeviceType>::ReferenceNodeDataStatic
@@ -684,36 +730,36 @@ setReferenceCellCenterData() {
   if(isReferenceCellCenterDataSet_) return;
   {
     // create memory on devices
-    refCenterData_.line            = createDataViewFromHostArray("CellTools::ReferenceCenterData::line", &refCenterDataStatic_.line[0]);
+    lineCenter            = createDataViewFromHostArray("CellTools::ReferenceCenterData::line", &refCenterDataStatic_.line[0]);
 
-    refCenterData_.triangle        = createDataViewFromHostArray("CellTools::ReferenceCenterData::triangle", &refCenterDataStatic_.triangle[0]);
+    triangleCenter        = createDataViewFromHostArray("CellTools::ReferenceCenterData::triangle", &refCenterDataStatic_.triangle[0]);
 
-    refCenterData_.quadrilateral   = createDataViewFromHostArray("CellTools::ReferenceCenterData::quad", &refCenterDataStatic_.quadrilateral[0]);
+    quadrilateralCenter   = createDataViewFromHostArray("CellTools::ReferenceCenterData::quad", &refCenterDataStatic_.quadrilateral[0]);
 
-    refCenterData_.tetrahedron     = createDataViewFromHostArray("CellTools::ReferenceCenterData::tet", &refCenterDataStatic_.tetrahedron[0]);
+    tetrahedronCenter     = createDataViewFromHostArray("CellTools::ReferenceCenterData::tet", &refCenterDataStatic_.tetrahedron[0]);
 
-    refCenterData_.hexahedron      = createDataViewFromHostArray("CellTools::ReferenceCenterData::hex", &refCenterDataStatic_.hexahedron[0]);
+    hexahedronCenter      = createDataViewFromHostArray("CellTools::ReferenceCenterData::hex", &refCenterDataStatic_.hexahedron[0]);
 
-    refCenterData_.pyramid         = createDataViewFromHostArray("CellTools::ReferenceCenterData::pyr", &refCenterDataStatic_.pyramid[0]);
+    pyramidCenter         = createDataViewFromHostArray("CellTools::ReferenceCenterData::pyr", &refCenterDataStatic_.pyramid[0]);
 
-    refCenterData_.wedge           = createDataViewFromHostArray("CellTools::ReferenceCenterData::wedge", &refCenterDataStatic_.wedge[0]);
-   }
+    wedgeCenter           = createDataViewFromHostArray("CellTools::ReferenceCenterData::wedge", &refCenterDataStatic_.wedge[0]);
+  }
 
   Kokkos::push_finalize_hook( [=] {
 
-    refCenterData_.line            = referenceNodeDataViewType();
+    lineCenter            = referenceNodeDataViewType();
 
-    refCenterData_.triangle        = referenceNodeDataViewType();
+    triangleCenter        = referenceNodeDataViewType();
 
-    refCenterData_.quadrilateral   = referenceNodeDataViewType();
+    quadrilateralCenter   = referenceNodeDataViewType();
 
-    refCenterData_.tetrahedron     = referenceNodeDataViewType();
+    tetrahedronCenter     = referenceNodeDataViewType();
 
-    refCenterData_.hexahedron      = referenceNodeDataViewType();
+    hexahedronCenter      = referenceNodeDataViewType();
 
-    refCenterData_.pyramid         = referenceNodeDataViewType();
+    pyramidCenter         = referenceNodeDataViewType();
 
-    refCenterData_.wedge           = referenceNodeDataViewType();
+    wedgeCenter           = referenceNodeDataViewType();
   } );
 
   isReferenceCellCenterDataSet_ = true;
@@ -736,37 +782,37 @@ getReferenceCellCenter(const unsigned      cellTopoKey){
   case shards::Beam<2>::key:
   case shards::Line<3>::key:
   case shards::ShellLine<3>::key:
-  case shards::Beam<3>::key:               cellCenter = refCenterData_.line; break;
+  case shards::Beam<3>::key:               cellCenter = lineCenter; break;
 
   case shards::Triangle<3>::key:
   case shards::ShellTriangle<3>::key:
   case shards::Triangle<4>::key:
   case shards::Triangle<6>::key:
-  case shards::ShellTriangle<6>::key:      cellCenter = refCenterData_.triangle; break;
+  case shards::ShellTriangle<6>::key:      cellCenter = triangleCenter; break;
 
   case shards::Quadrilateral<4>::key:
   case shards::ShellQuadrilateral<4>::key:
   case shards::Quadrilateral<8>::key:
   case shards::ShellQuadrilateral<8>::key:
   case shards::Quadrilateral<9>::key:
-  case shards::ShellQuadrilateral<9>::key: cellCenter = refCenterData_.quadrilateral; break;
+  case shards::ShellQuadrilateral<9>::key: cellCenter = quadrilateralCenter; break;
 
   case shards::Tetrahedron<4>::key:
   case shards::Tetrahedron<8>::key:
   case shards::Tetrahedron<10>::key:
-  case shards::Tetrahedron<11>::key:       cellCenter = refCenterData_.tetrahedron; break;
+  case shards::Tetrahedron<11>::key:       cellCenter = tetrahedronCenter; break;
 
   case shards::Hexahedron<8>::key:
   case shards::Hexahedron<20>::key:
-  case shards::Hexahedron<27>::key:        cellCenter = refCenterData_.hexahedron; break;
+  case shards::Hexahedron<27>::key:        cellCenter = hexahedronCenter; break;
 
   case shards::Pyramid<5>::key:
   case shards::Pyramid<13>::key:
-  case shards::Pyramid<14>::key:           cellCenter = refCenterData_.pyramid; break;
+  case shards::Pyramid<14>::key:           cellCenter = pyramidCenter; break;
 
   case shards::Wedge<6>::key:
   case shards::Wedge<15>::key:
-  case shards::Wedge<18>::key:             cellCenter = refCenterData_.wedge; break;
+  case shards::Wedge<18>::key:             cellCenter = wedgeCenter; break;
 
   default: {
     INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::invalid_argument,
@@ -781,10 +827,18 @@ bool
 RefCellCenter<DeviceType>::
 isReferenceCellCenterDataSet_ = false;
 
-template<typename DeviceType>
-typename RefCellCenter<DeviceType>::ReferenceCellCenterData
-RefCellCenter<DeviceType>::
-refCenterData_ = typename RefCellCenter<DeviceType>::ReferenceCellCenterData();
+#define DefineStaticRefCenter(obj) template<typename DeviceType> \
+    typename RefCellCenter<DeviceType>::referenceNodeDataViewType \
+    RefCellCenter<DeviceType>:: \
+    obj = typename RefCellCenter<DeviceType>::referenceNodeDataViewType();
+
+DefineStaticRefCenter(lineCenter)
+DefineStaticRefCenter(triangleCenter)
+DefineStaticRefCenter(quadrilateralCenter)
+DefineStaticRefCenter(tetrahedronCenter)
+DefineStaticRefCenter(hexahedronCenter)
+DefineStaticRefCenter(pyramidCenter)
+DefineStaticRefCenter(wedgeCenter)
 
 template<typename DeviceType>
 const typename RefCellCenter<DeviceType>::ReferenceCenterDataStatic

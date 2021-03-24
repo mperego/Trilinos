@@ -152,17 +152,14 @@ private:
   /** \struct Intrepid2::Impl::CellData::SubcellParamData
       \brief Parametrization coefficients of edges and faces of reference cells
    */
-  struct SubcellParamData {
-    subcellParamViewType dummy;
-    subcellParamViewType lineEdges;  // edge maps for 2d non-standard cells; shell line and beam
-    subcellParamViewType triEdges, quadEdges; // edge maps for 2d standard cells
-    subcellParamViewType shellTriEdges, shellQuadEdges; // edge maps for 3d non-standard cells; shell tri and quad
-    subcellParamViewType tetEdges, hexEdges, pyrEdges, wedgeEdges; // edge maps for 3d standard cells
-    subcellParamViewType shellTriFaces, shellQuadFaces; // face maps for 3d non-standard cells
-    subcellParamViewType tetFaces, hexFaces, pyrFaces, wedgeFaces; // face maps for 3d standard cells
-  };
 
-  static SubcellParamData subcellParamData_;
+  static subcellParamViewType dummyParam;
+  static subcellParamViewType lineEdgesParam;  // edge maps for 2d non-standard cells; shell line and beam
+  static subcellParamViewType triEdgesParam, quadEdgesParam; // edge maps for 2d standard cells
+  static subcellParamViewType shellTriEdgesParam, shellQuadEdgesParam; // edge maps for 3d non-standard cells; shell tri and quad
+  static subcellParamViewType tetEdgesParam, hexEdgesParam, pyrEdgesParam, wedgeEdgesParam; // edge maps for 3d standard cells
+  static subcellParamViewType shellTriFacesParam, shellQuadFacesParam; // face maps for 3d non-standard cells
+  static subcellParamViewType tetFacesParam, hexFacesParam, pyrFacesParam, wedgeFacesParam; // face maps for 3d standard cells
 
   static bool isSubcellParametrizationSet_;
 
@@ -213,15 +210,13 @@ private:
   /** \struct Intrepid2::Impl::CellData::ReferenceNodeData
     \brief Reference node data for each supported topology
    */
-  struct ReferenceNodeData {
-    referenceNodeDataViewType line, line_3;
-    referenceNodeDataViewType triangle, triangle_4, triangle_6;
-    referenceNodeDataViewType quadrilateral, quadrilateral_8, quadrilateral_9;
-    referenceNodeDataViewType tetrahedron, tetrahedron_8, tetrahedron_10, tetrahedron_11;
-    referenceNodeDataViewType hexahedron, hexahedron_20, hexahedron_27;
-    referenceNodeDataViewType pyramid, pyramid_13, pyramid_14;
-    referenceNodeDataViewType wedge, wedge_15, wedge_18;
-  };
+    static referenceNodeDataViewType lineNodes, line3Nodes;
+    static referenceNodeDataViewType triangleNodes, triangle4Nodes, triangle6Nodes;
+    static referenceNodeDataViewType quadrilateralNodes, quadrilateral8Nodes, quadrilateral9Nodes;
+    static referenceNodeDataViewType tetrahedronNodes, tetrahedron8Nodes, tetrahedron10Nodes, tetrahedron11Nodes;
+    static referenceNodeDataViewType hexahedronNodes, hexahedron20Nodes, hexahedron27Nodes;
+    static referenceNodeDataViewType pyramidNodes, pyramid13Nodes, pyramid14Nodes;
+    static referenceNodeDataViewType wedgeNodes, wedge15Nodes, wedge18Nodes;
 
   // reference nodes initialized
   /** \struct Intrepid2::CellTools::ReferenceNodeDataStatic
@@ -237,8 +232,7 @@ private:
     double wedge[6][3], wedge_15[15][3], wedge_18[18][3];
   };
 
-  static  const ReferenceNodeDataStatic refNodeDataStatic_;
-  static ReferenceNodeData refNodeData_;
+  static const ReferenceNodeDataStatic refNodeDataStatic_;
   static bool isReferenceNodeDataSet_;
 
 };
@@ -286,15 +280,13 @@ public:
 
 private:
 
-  struct ReferenceCellCenterData {
-    referenceNodeDataViewType line;
-    referenceNodeDataViewType triangle;
-    referenceNodeDataViewType quadrilateral;
-    referenceNodeDataViewType tetrahedron;
-    referenceNodeDataViewType hexahedron;
-    referenceNodeDataViewType pyramid;
-    referenceNodeDataViewType wedge;
-  };
+  static referenceNodeDataViewType lineCenter;
+  static referenceNodeDataViewType triangleCenter;
+  static referenceNodeDataViewType quadrilateralCenter;
+  static referenceNodeDataViewType tetrahedronCenter;
+  static referenceNodeDataViewType hexahedronCenter;
+  static referenceNodeDataViewType pyramidCenter;
+  static referenceNodeDataViewType wedgeCenter;
 
   struct ReferenceCenterDataStatic {
     double line[3];
@@ -307,7 +299,6 @@ private:
   };
 
   static  const ReferenceCenterDataStatic refCenterDataStatic_;
-  static ReferenceCellCenterData refCenterData_;
   static bool isReferenceCellCenterDataSet_;
 };
 }
