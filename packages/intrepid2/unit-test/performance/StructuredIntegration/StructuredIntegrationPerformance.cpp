@@ -159,14 +159,14 @@ double flopsPerJacobianDet(const int &spaceDim, const int &numPoints)
     break;
   }
   return r_val;*/
+  int r_val;
   switch (spaceDim) {
-    case 3: return 17.0 * numPoints;
-    case 2: return 3.0 * numPoints;
-    case 1: return 0.0;
-      
+    case 3: r_val = 17.0 * numPoints; break;
+    case 2: r_val = 3.0 * numPoints; break;
+    case 1: r_val = 0.0; break;
     default: INTREPID2_TEST_FOR_EXCEPTION(true, std::invalid_argument, "Unhandled spaceDim");
-      return -1;
   }
+  return r_val;
 }
 
 double flopsPerJacobianInverse(const int &spaceDim, const int &numPoints)
@@ -236,7 +236,7 @@ ScalarView<Scalar,ExecSpaceType> performStandardQuadratureHypercubeGRADGRAD(Cell
 
   shards::CellTopology cellTopo = geometry.cellTopology();
   
-  auto basis = Intrepid2::getBasis< Intrepid2::NodalBasisFamily<> >(cellTopo, fs, polyOrder);
+  auto basis = Intrepid2::getBasis< Intrepid2::NodalBasisFamily<Kokkos::DefaultExecutionSpace> >(cellTopo, fs, polyOrder);
   
   int numFields = basis->getCardinality();
   int numCells = geometry.numCells();
@@ -363,7 +363,7 @@ void performStructuredQuadratureHypercubeGRADGRAD(CellGeometry<PointScalar, spac
   
   shards::CellTopology cellTopo = geometry.cellTopology();
   
-  auto basis = Intrepid2::getBasis< Intrepid2::DerivedNodalBasisFamily<> >(cellTopo, fs, polyOrder);
+  auto basis = Intrepid2::getBasis< Intrepid2::DerivedNodalBasisFamily<Kokkos::DefaultExecutionSpace> >(cellTopo, fs, polyOrder);
   
   int numFields = basis->getCardinality();
   int numCells = geometry.numCells();
