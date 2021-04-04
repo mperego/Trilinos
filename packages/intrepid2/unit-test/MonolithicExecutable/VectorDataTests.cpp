@@ -215,6 +215,10 @@ namespace
     
     VectorData<Scalar,DeviceType> vectorData(vectorComponents);
     
+    TEST_EQUALITY(numFields, vectorData.extent_int(0)); // (F,P,D)
+    TEST_EQUALITY(numPoints, vectorData.extent_int(1)); // (F,P,D)
+    TEST_EQUALITY( spaceDim, vectorData.extent_int(2)); // (F,P,D)
+    
     Kokkos::View<bool*,DeviceType> vectorDataBools("vectorDataBools", 2);
     Kokkos::View<double*,DeviceType> vectorDataValues("vectorDataValues", 2);
 
