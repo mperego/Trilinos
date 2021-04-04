@@ -213,6 +213,8 @@ namespace
     Kokkos::Array<TensorData<Scalar,DeviceType>, spaceDim > family {TensorData<Scalar,DeviceType>(), nonzeroTensorData}; // empty first component
     Kokkos::Array< Kokkos::Array<TensorData<Scalar,DeviceType>, spaceDim>, numFamilies> vectorComponents {family};
     
+    VectorData<Scalar,DeviceType> vectorData(vectorComponents);
+    
     Kokkos::View<bool*,DeviceType> vectorDataBools("vectorDataBools", 2);
     Kokkos::View<double*,DeviceType> vectorDataValues("vectorDataValues", 2);
 
