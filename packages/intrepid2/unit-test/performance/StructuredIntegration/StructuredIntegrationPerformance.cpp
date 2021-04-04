@@ -270,8 +270,8 @@ ScalarView<Scalar,ExecSpaceType> performStandardQuadratureHypercubeGRADGRAD(Cell
   
   const int numNodesPerCell = geometry.numNodesPerCell();
   ScalarView<PointScalar,ExecSpaceType> expandedCellNodes("expanded cell nodes",numCells,numNodesPerCell,spaceDim);
-  for (int cellOrdinal=0; cellOrdinal<numCells; cellOrdinal++)
-  {
+  Kokkos::parallel_for(Kokkos::RangePolicy<ExecSpaceType>(0,numCells),
+  KOKKOS_LAMBDA (const int &cellOrdinal) {
     for (int nodeOrdinal=0; nodeOrdinal<numNodesPerCell; nodeOrdinal++)
     {
       for (int d=0; d<spaceDim; d++)
@@ -279,7 +279,7 @@ ScalarView<Scalar,ExecSpaceType> performStandardQuadratureHypercubeGRADGRAD(Cell
         expandedCellNodes(cellOrdinal,nodeOrdinal,d) = geometry(cellOrdinal,nodeOrdinal,d);
       }
     }
-  }
+  });
   
   ScalarView<Scalar,ExecSpaceType> cellMeasures("cell measures", worksetSize, numPoints);
   ScalarView<Scalar,ExecSpaceType> jacobianDeterminant("jacobian determinant", worksetSize, numPoints);
