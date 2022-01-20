@@ -389,6 +389,12 @@ ProjectionTools<DeviceType>::getL2EvaluationPoints(typename BasisType::ScalarVie
     auto facePointsRange = ePointsRange(faceDim, iface);
     auto faceEPoints = Kokkos::create_mirror_view_and_copy(MemSpaceType(),projStruct->getEvalPoints(faceDim,iface,ePointType));
 
+    if(iface==3) {
+      std::cout << "Evaluation point 2d:\n";
+      for(int i=0; i<faceEPoints.extent(0);i++)
+        std::cout << faceEPoints(i,0) << "," << faceEPoints(i,1) << std::endl;
+    }
+
     const auto topoKey = refTopologyKey(faceDim,iface);
     Kokkos::parallel_for
     ("Evaluate Points",
@@ -397,10 +403,21 @@ ProjectionTools<DeviceType>::getL2EvaluationPoints(typename BasisType::ScalarVie
       ordinal_type fOrt[6];
       orts(ic).getFaceOrientation(fOrt, numFaces);
       ordinal_type ort = fOrt[iface];
+      if(iface==3) {
+        std::cout << "ort" << ort << std::endl;
+      }
 
       Impl::OrientationTools::mapSubcellCoordsToRefCell(Kokkos::subview(ePoints,  ic, facePointsRange, Kokkos::ALL()),
           faceEPoints, subcellParamFace, topoKey, iface, ort);
     });
+
+    if(iface==3) {
+      auto faceEPoints3D= Kokkos::subview(ePoints,  0, facePointsRange, Kokkos::ALL());
+      std::cout << "Evaluation point 3d:\n";
+      for(int i=0; i<faceEPoints3D.extent(0);i++)
+        std::cout << faceEPoints3D(i,0) << "," << faceEPoints3D(i,1) << "," <<faceEPoints3D(i,2)<<std::endl;
+    }
+
   }
 
 
@@ -410,6 +427,122 @@ ProjectionTools<DeviceType>::getL2EvaluationPoints(typename BasisType::ScalarVie
     RealSpaceTools<DeviceType>::clone(Kokkos::subview(ePoints, Kokkos::ALL(), pointsRange, Kokkos::ALL()), cellEPoints);
   }
 }
+/*
+template<typename DeviceType>
+template<typename BasisType,
+typename ortValueType,       class ...ortProperties>
+void
+ProjectionTools<DeviceType>::getL2EvaluationPointsOnBoundarySides(typename BasisType::ScalarViewType ePoints,
+    const typename BasisType::IntViewType  sides,
+    const Kokkos::DynRankView<ortValueType,   ortProperties...>  orts,
+    const BasisType* cellBasis,
+    ProjectionStruct<DeviceType, typename BasisType::scalarType> * projStruct,
+    const EvalPointsType ePointType) {
+  typedef typename BasisType::scalarType scalarType;
+  typedef Kokkos::DynRankView<scalarType,ortProperties...> ScalarViewType;
+  const auto cellTopo = cellBasis->getBaseCellTopology();
+  //const auto cellTopoKey = cellBasis->getBaseCellTopology().getKey();
+  ordinal_type dim = cellTopo.getDimension();
+  ordinal_type numCells = ePoints.extent(0);
+  const ordinal_type edgeDim = 1;
+  const ordinal_type faceDim = 2;
+
+  ordinal_type numVertices = (cellBasis->getDofCount(0, 0) > 0) ? cellTopo.getVertexCount() : 0;
+  ordinal_type numEdges = (cellBasis->getDofCount(edgeDim, 0) > 0) ? cellTopo.getEdgeCount() : 0;
+  ordinal_type numFaces = (cellBasis->getDofCount(faceDim, 0) > 0) ? cellTopo.getFaceCount() : 0;
+
+
+  auto ePointsRange = projStruct->getPointsRange(ePointType);
+
+  typename RefSubcellParametrization<DeviceType>::ConstViewType subcellParamEdge,  subcellParamFace;
+  if(numEdges>0)
+    subcellParamEdge = RefSubcellParametrization<DeviceType>::get(edgeDim, cellTopo.getKey());
+  if(numFaces>0)
+    subcellParamFace = RefSubcellParametrization<DeviceType>::get(faceDim, cellTopo.getKey());
+
+  auto refTopologyKey = projStruct->getTopologyKey();
+
+  ScalarViewType workView("workView", numCells, projStruct->getMaxNumEvalPoints(ePointType), dim-1);
+
+  if(numVertices>0) {
+    for(ordinal_type iv=0; iv<numVertices; ++iv) {
+      auto vertexEPoints = Kokkos::create_mirror_view_and_copy(MemSpaceType(),projStruct->getEvalPoints(0,iv,ePointType));
+      RealSpaceTools<DeviceType>::clone(Kokkos::subview(ePoints, Kokkos::ALL(),
+          ePointsRange(0, iv), Kokkos::ALL()), vertexEPoints);
+    }
+  }
+
+  auto edgeMapOnFace = Kokkos::create_mirror_view_and_copy(MemSpaceType(),projStruct->getEdgeMapOnFace());
+  std::vector<bool> needEdge(numFaces,false);
+  for(ordinal_type ie=0; ie<numEdges; ++ie) {
+    auto edgePointsRange = ePointsRange(edgeDim, ie);
+    auto edgeEPoints = Kokkos::create_mirror_view_and_copy(MemSpaceType(),projStruct->getEvalPoints(edgeDim,ie,ePointType));
+    for(int iface=0; iface<numFaces;++iface)
+      for(unsigned e=0; e<cellTopo.getEdgeCount(faceDim,iface); e++)
+        if(edgeMapOnFace(iface,e)==ie) {
+          needEdge(iface)=true;
+          continue;
+        }
+
+
+    const auto topoKey = refTopologyKey(edgeDim,ie);
+    Kokkos::parallel_for
+    ("Evaluate Points",
+        Kokkos::RangePolicy<ExecSpaceType, int> (0, numCells),
+        KOKKOS_LAMBDA (const size_t ic) {
+
+      if(needEdge[sides(ic)]) {
+
+      ordinal_type eOrt[12];
+      orts(ic).getEdgeOrientation(eOrt, numEdges);
+      ordinal_type ort = eOrt[ie];
+
+      Impl::OrientationTools::mapSubcellCoordsToRefCell(Kokkos::subview(ePoints,ic,edgePointsRange,Kokkos::ALL()),
+          edgeEPoints, subcellParamEdge, topoKey, ie, ort);
+      }
+    });
+  }
+
+  for(ordinal_type iface=0; iface<numFaces; ++iface) {
+    auto facePointsRange = ePointsRange(faceDim, iface);
+    auto faceEPoints = Kokkos::create_mirror_view_and_copy(MemSpaceType(),projStruct->getEvalPoints(faceDim,iface,ePointType));
+
+    if(iface==3) {
+      std::cout << "Evaluation point 2d:\n";
+      for(int i=0; i<faceEPoints.extent(0);i++)
+        std::cout << faceEPoints(i,0) << "," << faceEPoints(i,1) << std::endl;
+    }
+
+    const auto topoKey = refTopologyKey(faceDim,iface);
+    Kokkos::parallel_for
+    ("Evaluate Points",
+        Kokkos::RangePolicy<ExecSpaceType, int> (0, numCells),
+        KOKKOS_LAMBDA (const size_t ic) {
+      if(iface != sides[ic]) continue;
+      ordinal_type fOrt[6];
+      orts(ic).getFaceOrientation(fOrt, numFaces);
+      ordinal_type ort = fOrt[iface];
+      if(iface==3) {
+        std::cout << "ort" << ort << std::endl;
+
+      Impl::OrientationTools::mapSubcellCoordsToRefCell(Kokkos::subview(ePoints,  ic, facePointsRange, Kokkos::ALL()),
+          faceEPoints, subcellParamFace, topoKey, iface, ort);
+      }
+    });
+
+    if(iface==3) {
+      auto faceEPoints3D= Kokkos::subview(ePoints,  0, facePointsRange, Kokkos::ALL());
+      std::cout << "Evaluation point 3d:\n";
+      for(int i=0; i<faceEPoints3D.extent(0);i++)
+        std::cout << faceEPoints3D(i,0) << "," << faceEPoints3D(i,1) << "," <<faceEPoints3D(i,2)<<std::endl;
+    }
+
+  }
+}
+*/
+
+
+
 
 template<typename DeviceType>
 template<typename basisCoeffsValueType, class ...basisCoeffsProperties,
@@ -596,6 +729,27 @@ ProjectionTools<DeviceType>::getL2BasisCoeffs(Kokkos::DynRankView<basisCoeffsVal
 
     ElemSystem edgeSystem("edgeSystem", false);
     edgeSystem.solve(basisCoeffs, edgeMassMat_, edgeRhsMat_, t_, w_, edgeDof, edgeCardinality);
+
+    if(dim ==2 || ie==3 || ie==7 || ie==8 || ie==11)
+    {
+      if(dim == 2)
+        std::cout << "Quad projection on edge " << ie << "\n";
+      else
+        std::cout << "Hexa projection on edge " << ie << "\n";
+      for(int i=0; i<edgeCardinality; ++i)
+        std::cout<< edgeDof(i) << " " << basisCoeffs(0,edgeDof(i)) <<std::endl;
+      for(ordinal_type iq=0; iq <numTargetEPoints; ++iq) {
+        std::cout<< "(" <<
+            targetEPoints(0,offsetTarget+iq,dim-2) <<", "<<
+            targetEPoints(0,offsetTarget+iq,dim-1) <<")"<<
+            "{" << targetAtTargetEPoints(0,offsetTarget+iq,dim-2) << "," << targetAtTargetEPoints(0,offsetTarget+iq,dim-1) <<"} [";
+        for(int i=0; i<edgeCardinality; ++i)
+          std::cout<< "(" << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,dim-2) << ", " << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,dim-1) <<"), ";
+        std::cout << "]"<<std::endl;
+      }
+    }
+
+
   }
 
   typename RefSubcellParametrization<DeviceType>::ConstViewType  subcellParamFace;
@@ -651,6 +805,23 @@ ProjectionTools<DeviceType>::getL2BasisCoeffs(Kokkos::DynRankView<basisCoeffsVal
 
     ElemSystem faceSystem("faceSystem", false);
     faceSystem.solve(basisCoeffs, faceMassMat_, faceRhsMat_, t_, w_, faceDof, faceCardinality);
+
+    if(iface == 3){
+      std::cout << "Hexa projection on face " << iface << "\n";
+      for(int i=0; i<faceCardinality; ++i)
+        std::cout<< faceDof(i) << " " << basisCoeffs(0,faceDof(i)) <<std::endl;
+
+      std::cout << "Hexa coords and basis:\n";
+      for(ordinal_type iq=0; iq <numTargetEPoints; ++iq) {
+        std::cout<< "(" << //targetEPoints(0,offsetTarget+iq,0) <<", "<<
+            targetEPoints(0,offsetTarget+iq,1) <<", "<<
+            targetEPoints(0,offsetTarget+iq,2) <<")"<<
+            "{" << targetAtTargetEPoints(0,offsetTarget+iq,0) <<"} [";
+        for(int i=0; i<faceCardinality; ++i)
+          std::cout<< basisAtTargetEPoints(0,faceDof(i),offsetTarget+iq,0)<<", ";
+        std::cout << "]"<<std::endl;
+      }
+    }
   }
 
   ordinal_type numElemDofs = cellBasis->getDofCount(dim,0);
@@ -698,6 +869,21 @@ ProjectionTools<DeviceType>::getL2BasisCoeffs(Kokkos::DynRankView<basisCoeffsVal
     WorkArrayViewType w_("w",numCells,numElemDofs);
     ElemSystem cellSystem("cellSystem", false);
     cellSystem.solve(basisCoeffs, cellMassMat_, cellRhsMat_, t_, w_, cellDofs, numElemDofs);
+
+    if(dim == 2){
+      std::cout << "Quad projection:\n";
+      for(int i=0; i<numElemDofs; ++i)
+        std::cout<< cellDofs(i) << " " << basisCoeffs(0,cellDofs(i)) <<std::endl;
+      std::cout << "Quad coords and basis:\n";
+      for(ordinal_type iq=0; iq <numTargetEPoints; ++iq) {
+        std::cout<< "(" << targetEPoints(0,offsetTarget+iq,0) <<", "<<
+            targetEPoints(0,offsetTarget+iq,1) <<")"<<"{"
+            << targetAtTargetEPoints(0,offsetTarget+iq,0) <<"} [";
+        for(int i=0; i<numElemDofs; ++i)
+          std::cout<< basisAtTargetEPoints(0,cellDofs(i),offsetTarget+iq,0)<<", ";
+        std::cout << "]"<<std::endl;
+      }
+    }
   }
 }
 

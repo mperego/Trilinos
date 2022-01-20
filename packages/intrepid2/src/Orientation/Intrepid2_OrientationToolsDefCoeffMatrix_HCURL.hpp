@@ -93,11 +93,12 @@ check_getCoeffMatrix_HCURL(const subcellBasisType& subcellBasis,
   const ordinal_type subcellDim = subcellTopo.getDimension();
 
 
-
+/*
   INTREPID2_TEST_FOR_EXCEPTION( subcellDim >= cellDim,
       std::logic_error,
       ">>> ERROR (Intrepid::OrientationTools::getCoeffMatrix_HCURL): " \
       "cellDim must be greater than subcellDim.");
+      */
 
   const auto subcellBaseKey = subcellTopo.getBaseKey();
   const auto cellBaseKey = cellTopo.getBaseKey();
@@ -259,14 +260,24 @@ getCoeffMatrix_HCURL(OutputViewType &output,
 
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);
-  mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
+  if(cellDim == subcellDim)
+    mapToModifiedReference(refPtsCell,refPtsSubcell,subcellBaseKey,subcellOrt);
+  else
+    mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
 
 
   //mapping tangents t_j into parent cell, i.e. computing J_F J_\eta t_j
   Kokkos::DynRankView<value_type,host_device_type> trJacobianF("trJacobianF", subcellDim, cellDim );
-  OrientationTools::getRefSubcellTangents(trJacobianF, subcellParam, subcellBaseKey, subcellId, subcellOrt);
-
-
+  if(cellDim == subcellDim) {
+    Kokkos::DynRankView<value_type,host_device_type> jac("data", subcellDim, subcellDim);
+    getJacobianOfOrientationMap(jac,subcellBaseKey,subcellOrt);
+    for(ordinal_type d=0; d<subcellDim; ++d)
+      for(ordinal_type j=0; j<cellDim; ++j) {
+        trJacobianF(j,d) = jac(d,j);
+    }
+  }
+  else
+    OrientationTools::getRefSubcellTangents(trJacobianF, subcellParam, subcellBaseKey, subcellId, subcellOrt);
 
   // cellBasisValues = \psi_k(F_s (\eta_o (\xi_j)))
   Kokkos::DynRankView<value_type,host_device_type> cellBasisValues("cellBasisValues", numCellBasis, ndofSubcell, cellDim);
@@ -296,6 +307,7 @@ getCoeffMatrix_HCURL(OutputViewType &output,
         for (ordinal_type d=0; d<cellDim; ++d)
           refEntry +=  cellBasisValues(ic,j,d)*trJacobianF(k,d)*refSubcellTangents(j,k);
       }
+      //std::cout << "eccolo ort: (" << i << ", " << j <<"): " << ortEntry << std::endl;
       PsiMat(j,i) = refEntry;
       PhiMat(j,i) = ortEntry;
     }
@@ -305,6 +317,20 @@ getCoeffMatrix_HCURL(OutputViewType &output,
   {
     Teuchos::LAPACK<ordinal_type,value_type> lapack;
     ordinal_type info = 0;
+    // Print A matrix
+    //*
+    if(subcellDim == cellDim)
+    {
+      std::cout  << "|";
+      for (ordinal_type i=0;i<ndofSubcell;++i) {
+        for (ordinal_type j=0;j<ndofSubcell;++j) {
+          std::cout << PsiMat(i,j) << " ";
+        }
+        std::cout  << "| ";
+      }
+      std::cout <<std::endl;
+    }
+    //*/
 
 
     /*

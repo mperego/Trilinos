@@ -399,6 +399,9 @@ public:
     return subCellTopologyKey;
   }
 
+  const key_tag getEdgeMapOnFace() const {
+    return edgeMapOnFace;
+  }
 
 
 
@@ -463,6 +466,7 @@ public:
       const ordinal_type targetCubDegree);
 
   key_tag subCellTopologyKey;
+  key_tag edgeMapOnFace;
   range_tag basisPointsRange;
   range_tag basisDerivPointsRange;
   range_tag targetPointsRange;

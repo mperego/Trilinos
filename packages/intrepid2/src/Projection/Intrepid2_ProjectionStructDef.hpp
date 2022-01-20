@@ -147,6 +147,7 @@ void ProjectionStruct<DeviceType,ValueType>::createL2ProjectionStruct(const Basi
     edgeTargetCub->getCubature(targetCubPoints[edgeDim][ie], targetCubWeights[edgeDim][ie]);
   }
 
+  edgeMapOnFace = key_tag("edgeMapOnFace",6,4);
   for(ordinal_type iface=0; iface<numFaces; ++iface) {
     ordinal_type cub_degree = 2*faceBasisCubDegree;
     subCellTopologyKey(faceDim,iface) = cellBasis->getBaseCellTopology().getKey(faceDim, iface);
@@ -166,6 +167,24 @@ void ProjectionStruct<DeviceType,ValueType>::createL2ProjectionStruct(const Basi
     targetCubPoints[faceDim][iface] = view_type("targetCubPoints",faceTargetCub->getNumPoints(),faceDim);
     targetCubWeights[faceDim][iface] = view_type("targetCubWeights",faceTargetCub->getNumPoints());
     faceTargetCub->getCubature(targetCubPoints[faceDim][iface], targetCubWeights[faceDim][iface]);
+
+    auto faceTopo = cellBasis->getSubCellRefBasis(faceDim,iface)->getBaseCellTopology();
+    std::vector<unsigned> nodeMap(faceTopo.getNodeCount());
+    for(size_t i=0; i<nodeMap.size(); i++)
+      nodeMap[i] = cellTopo.getNodeMap(faceDim, iface, i);
+    for(size_t fEdge=0; fEdge<faceTopo.getEdgeCount(); fEdge++) {
+      unsigned fEedgePoints[2] = {nodeMap[faceTopo.getNodeMap(1, fEdge, 0)], nodeMap[faceTopo.getNodeMap(1, fEdge, 1)]};
+      for(size_t cEdge=0; cEdge<cellTopo.getEdgeCount(); cEdge++) {
+        unsigned cEdgePoints[2] = {cellTopo.getNodeMap(1, cEdge, 0), cellTopo.getNodeMap(1, cEdge, 1)};
+        if(((fEedgePoints[0]==cEdgePoints[0])&&(fEedgePoints[1]==cEdgePoints[1]))||
+            ((fEedgePoints[0]==cEdgePoints[1])&&(fEedgePoints[1]==cEdgePoints[0]))) {
+          edgeMapOnFace(iface,fEdge)=cEdge;
+          break;
+        }
+      }
+    }
+
+
   }
   subCellTopologyKey(dim,0) = cellBasis->getBaseCellTopology().getBaseKey();
   if(hasCellDofs) {

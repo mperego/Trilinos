@@ -176,7 +176,8 @@ namespace Intrepid2 {
       }
       ort.setEdgeOrientation(nedge, orts);
     }
-    const ordinal_type nface = cellTopo.getFaceCount();
+    const ordinal_type nface = (cellTopo.getDimension()==2) ? 1 : cellTopo.getFaceCount();
+    //const ordinal_type nface = cellTopo.getFaceCount();
     if (nface > 0) {
       typename elemNodeViewType::non_const_value_type vertsSubCell[4];
       ordinal_type orts[6], nvertSubCell;
@@ -498,7 +499,7 @@ namespace Intrepid2 {
   void
   Orientation::setFaceOrientation(const ordinal_type numFace, const ordinal_type faceOrt[]) {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_ABORT( !( 4 <= numFace && numFace <= 6 ), 
+    INTREPID2_TEST_FOR_ABORT( !( 1 <= numFace && numFace <= 6 ),
                               ">>> ERROR (Intrepid::Orientation::setFaceOrientation): "
                               "Invalid numFace (4--6)");
 #endif
@@ -513,7 +514,7 @@ namespace Intrepid2 {
   void
   Orientation::getFaceOrientation(ordinal_type *faceOrt, const ordinal_type numFace) const {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_ABORT( !( 4 <= numFace && numFace <= 6 ), 
+    INTREPID2_TEST_FOR_ABORT( !( 1 <= numFace && numFace <= 6 ),
                               ">>> ERROR (Intrepid::Orientation::setEdgeOrientation): "
                               "Invalid numFace (4--6)");
 #endif

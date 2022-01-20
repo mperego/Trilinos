@@ -217,6 +217,40 @@ namespace Intrepid2 {
           }
         }
       }
+
+
+      if (cellDim == 2) {
+        ordinal_type ortFaces[12];
+        orts(cell).getFaceOrientation(ortFaces, 1);
+
+        // apply coeff matrix
+        {
+          const ordinal_type ordFace = (2 < tagToOrdinal.extent(0) ? (static_cast<size_type>(0) < tagToOrdinal.extent(1) ? tagToOrdinal(2, 0, 0) : -1) : -1);
+
+          if (ordFace != -1) {
+            std::cout << "I'm doing this!" << std::endl;
+            const ordinal_type ndofFace = ordinalToTag(ordFace, 3);
+            const auto mat = Kokkos::subview(matData,
+                                             numEdges*existEdgeDofs, ortFaces[0],
+                                             Kokkos::ALL(), Kokkos::ALL());
+
+            for (ordinal_type j=0;j<numPoints;++j)
+              for (ordinal_type i=0;i<ndofFace;++i) {
+                const ordinal_type ii = tagToOrdinal(2, 0, i);
+
+                for (ordinal_type k=0;k<dimBasis;++k) {
+                  input_value_type temp = 0.0;
+                  for (ordinal_type l=0;l<ndofFace;++l) {
+                    const ordinal_type ll = tagToOrdinal(2, 0, l);
+                    temp += mat(i,l)*in(ll, j, k);
+                  }
+                  out(ii, j, k) = temp;
+                }
+              }
+          }
+        }
+      }
+
     }
   };
 

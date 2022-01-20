@@ -82,12 +82,12 @@ check_getCoeffMatrix_HGRAD(const subcellBasisType& subcellBasis,
 
   const ordinal_type cellDim = cellTopo.getDimension();
   const ordinal_type subcellDim = subcellTopo.getDimension();
-
+/*
   INTREPID2_TEST_FOR_EXCEPTION( subcellDim >= cellDim,
       std::logic_error,
       ">>> ERROR (Intrepid::OrientationTools::getCoeffMatrix_HGRAD): " \
       "cellDim must be greater than subcellDim.");
-
+*/
   const auto subcellBaseKey = subcellTopo.getBaseKey();
 
   INTREPID2_TEST_FOR_EXCEPTION( subcellBaseKey != shards::Line<>::key &&
@@ -161,17 +161,28 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   Kokkos::DynRankView<value_type,host_device_type> refPtsSubcell("refPtsSubcell", ndofSubcell, subcellDim);
   auto latticeSize=PointTools::getLatticeSize(subcellTopo, subcellBasis.getDegree(), 1);
 
+/*
   INTREPID2_TEST_FOR_EXCEPTION( latticeSize != ndofSubcell,
       std::logic_error,
       ">>> ERROR (Intrepid::OrientationTools::getCoeffMatrix_HGRAD): " \
       "Lattice size should be equal to the onber of subcell internal DoFs");
-  PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree(), 1, POINTTYPE_WARPBLEND);
+  */
+  if(latticeSize != ndofSubcell)
+    PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree()+2, 1, POINTTYPE_WARPBLEND);
+  else
+    PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree(), 1, POINTTYPE_WARPBLEND);
 
   // map the points into the parent, cell accounting for orientation
   auto subcellParam = Intrepid2::RefSubcellParametrization<host_device_type>::get(subcellDim, cellTopo.getKey());
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
-  mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
+  if(cellDim == subcellDim) {
+    mapToModifiedReference(refPtsCell,refPtsSubcell,subcellBaseKey,subcellOrt);
+    Kokkos::DynRankView<value_type,host_device_type> jac("",2,2);
+    getJacobianOfOrientationMap(jac,subcellBaseKey,subcellOrt);
+  }
+  else
+    mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
 
   //
   // Bases evaluation on the reference points
@@ -252,9 +263,9 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   }
 
   // Print A Matrix
-  /*
+  //*
   {
-    std::cout  << "|";
+    std::cout  << subcellId << "," << subcellOrt << ": |";
     for (ordinal_type i=0;i<ndofSubcell;++i) {
       for (ordinal_type j=0;j<ndofSubcell;++j) {
         std::cout << PhiMat(i,j) << " ";
@@ -263,7 +274,7 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
     }
     std::cout <<std::endl;
   }
-  */
+  //*/
 
   {
     // move the data to original device memory
