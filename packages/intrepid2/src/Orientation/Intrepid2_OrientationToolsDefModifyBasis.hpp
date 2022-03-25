@@ -224,6 +224,7 @@ namespace Intrepid2 {
         orts(cell).getFaceOrientation(ortFaces, 1);
 
         // apply coeff matrix
+        if(ortFaces[0]!=0)
         {
           const ordinal_type ordFace = (2 < tagToOrdinal.extent(0) ? (static_cast<size_type>(0) < tagToOrdinal.extent(1) ? tagToOrdinal(2, 0, 0) : -1) : -1);
 

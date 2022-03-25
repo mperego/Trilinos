@@ -195,6 +195,36 @@ namespace Intrepid2 {
   }
 
   inline
+  Orientation
+  Orientation::getSideOrientation(const shards::CellTopology cellTopo,
+                              const  ordinal_type subcellOrd) {
+    Orientation sideOrt;
+    const ordinal_type numEdges = cellTopo.getEdgeCount();
+    ordinal_type edgeOrts[12];
+    getEdgeOrientation(edgeOrts, numEdges);
+
+    if(cellTopo.getDimension()==2) {
+      sideOrt._edgeOrt |= (edgeOrts[subcellOrd] & 1);
+    } else if (cellTopo.getDimension()==3) {
+      const ordinal_type numSideEdges = cellTopo.getEdgeCount(cellTopo.getDimension()-1,subcellOrd);
+      for(ordinal_type sideEdge = 0; sideEdge < numSideEdges; ++sideEdge) {
+        ordinal_type cellEdge = getEdgeOrdinalOfFace(sideEdge, subcellOrd, cellTopo);
+        sideOrt._edgeOrt |= (edgeOrts[cellEdge] & 1) << sideEdge;
+      }
+    }
+
+    if(cellTopo.getDimension()==3) {
+      const ordinal_type numFaces = cellTopo.getFaceCount();
+      ordinal_type faceOrts[6];
+      getFaceOrientation(faceOrts, numFaces);
+      sideOrt._faceOrt |= (faceOrts[subcellOrd] & 7);
+    }
+
+    return sideOrt;
+  }
+
+
+  inline
   ordinal_type 
   Orientation::getEdgeOrdinalOfFace(const ordinal_type subsubcellOrd,
                                     const ordinal_type subcellOrd,
@@ -499,7 +529,7 @@ namespace Intrepid2 {
   void
   Orientation::setFaceOrientation(const ordinal_type numFace, const ordinal_type faceOrt[]) {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_ABORT( !( 1 <= numFace && numFace <= 6 ),
+    INTREPID2_TEST_FOR_ABORT( !((numFace == 1) || (4 <= numFace && numFace <= 6 )),
                               ">>> ERROR (Intrepid::Orientation::setFaceOrientation): "
                               "Invalid numFace (4--6)");
 #endif
@@ -514,7 +544,7 @@ namespace Intrepid2 {
   void
   Orientation::getFaceOrientation(ordinal_type *faceOrt, const ordinal_type numFace) const {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_ABORT( !( 1 <= numFace && numFace <= 6 ),
+    INTREPID2_TEST_FOR_ABORT( !((numFace == 1) || (4 <= numFace && numFace <= 6 )),
                               ">>> ERROR (Intrepid::Orientation::setEdgeOrientation): "
                               "Invalid numFace (4--6)");
 #endif

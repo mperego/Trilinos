@@ -311,12 +311,17 @@ int OrientationQuad(const bool verbose) {
          }
 
          auto numElemDOFs = basis.getDofCount(dim,0);
-         for(ordinal_type i=0; i<numCells; ++i)
+         DynRankView ConstructWithLabel(quadDofCoordsOriented,  basisCardinality, dim);
+         for(ordinal_type i=0; i<numCells; ++i) {
+           ordinal_type fOrt[1];
+           elemOrts(i).getFaceOrientation(fOrt, 1);
+           iots::mapToModifiedReference(quadDofCoordsOriented,dofCoords,quad,fOrt[0]);
            for(ordinal_type j=0; j<numElemDOFs; ++j) {
              auto idof = basis.getDofOrdinal(dim, 0, j);
              for(ordinal_type d=0; d <dim; ++d)
-               dofCoordsOriented(i,idof,d) = dofCoords(idof,d);
+               dofCoordsOriented(i,idof,d) = quadDofCoordsOriented(idof,d);
            }
+         }
        }
 
        //Compute physical Dof Coordinates and Reference coordinates
@@ -601,12 +606,17 @@ int OrientationQuad(const bool verbose) {
           }
 
           auto numElemDOFs = basis.getDofCount(dim,0);
-          for(ordinal_type i=0; i<numCells; ++i)
+          DynRankView ConstructWithLabel(quadDofCoordsOriented,  basisCardinality, dim);
+          for(ordinal_type i=0; i<numCells; ++i) {
+            ordinal_type fOrt[1];
+            elemOrts(i).getFaceOrientation(fOrt, 1);
+            iots::mapToModifiedReference(quadDofCoordsOriented,dofCoords,quad,fOrt[0]);
             for(ordinal_type j=0; j<numElemDOFs; ++j) {
               auto idof = basis.getDofOrdinal(dim, 0, j);
               for(ordinal_type d=0; d <dim; ++d)
-                dofCoordsOriented(i,idof,d) = dofCoords(idof,d);
+                dofCoordsOriented(i,idof,d) = quadDofCoordsOriented(idof,d);
             }
+          }
         }
 
         //Compute physical Dof Coordinates and Reference coordinates
@@ -663,6 +673,22 @@ int OrientationQuad(const bool verbose) {
                   dofCoeffsTmp(i,idof,d) = edgeTan2d[d];
                 }
               }
+            }
+          }
+        }
+
+        ordinal_type fOrt[1];
+        DynRankView ConstructWithLabel(jac,  dim, dim);
+        auto numElemDOFs = basis.getDofCount(dim,0);
+        for(ordinal_type i=0; i<numCells; ++i) {
+          elemOrts(i).getFaceOrientation(fOrt, 1);
+          iots::getJacobianOfOrientationMap(jac, quad, fOrt[0]);
+          for(ordinal_type j=0; j<numElemDOFs; ++j) {
+            auto idof = basis.getDofOrdinal(2, 0, j);
+            for(ordinal_type d=0; d <dim; ++d) {
+              dofCoeffsTmp(i,idof,d) = 0;
+              for(ordinal_type k=0; k <dim; ++k)
+                dofCoeffsTmp(i,idof,d) += jac(d,k)*dofCoeffs(idof,k);
             }
           }
         }
@@ -968,12 +994,17 @@ int OrientationQuad(const bool verbose) {
           }
 
           auto numElemDOFs = basis.getDofCount(dim,0);
-          for(ordinal_type i=0; i<numCells; ++i)
+          DynRankView ConstructWithLabel(quadDofCoordsOriented,  basisCardinality, dim);
+          for(ordinal_type i=0; i<numCells; ++i) {
+            ordinal_type fOrt[1];
+            elemOrts(i).getFaceOrientation(fOrt, 1);
+            iots::mapToModifiedReference(quadDofCoordsOriented,dofCoords,quad,fOrt[0]);
             for(ordinal_type j=0; j<numElemDOFs; ++j) {
               auto idof = basis.getDofOrdinal(dim, 0, j);
               for(ordinal_type d=0; d <dim; ++d)
-                dofCoordsOriented(i,idof,d) = dofCoords(idof,d);
+                dofCoordsOriented(i,idof,d) = quadDofCoordsOriented(idof,d);
             }
+          }
         }
 
         //Compute physical Dof Coordinates and Reference coordinates

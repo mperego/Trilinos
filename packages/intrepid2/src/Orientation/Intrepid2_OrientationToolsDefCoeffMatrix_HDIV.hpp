@@ -219,10 +219,7 @@ getCoeffMatrix_HDIV(OutputViewType &output,
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);
   // map points from the subcell manifold into the cell one
-  if(cellDim == subcellDim)
-    mapToModifiedReference(refPtsCell,refPtsSubcell,subcellBaseKey,subcellOrt);
-  else
-    mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
+  mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
 
   //computing normal to the subcell accounting for orientation
   Kokkos::DynRankView<value_type,host_device_type> tangentsAndNormal("trJacobianF", cellDim, cellDim );

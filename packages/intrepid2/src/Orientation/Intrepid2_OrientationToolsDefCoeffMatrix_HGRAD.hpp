@@ -176,11 +176,8 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   auto subcellParam = Intrepid2::RefSubcellParametrization<host_device_type>::get(subcellDim, cellTopo.getKey());
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
-  if(cellDim == subcellDim) {
+  if(cellDim == subcellDim)
     mapToModifiedReference(refPtsCell,refPtsSubcell,subcellBaseKey,subcellOrt);
-    Kokkos::DynRankView<value_type,host_device_type> jac("",2,2);
-    getJacobianOfOrientationMap(jac,subcellBaseKey,subcellOrt);
-  }
   else
     mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
 

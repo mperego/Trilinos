@@ -66,9 +66,8 @@ namespace Intrepid2 {
     // High order HGRAD Elements
     //
     const auto cellTopo = basis->getBaseCellTopology();
-    const ordinal_type numEdges = cellTopo.getEdgeCount();
+    const ordinal_type numEdges = (cellTopo.getDimension()==1) ? 1 : cellTopo.getEdgeCount();
     const ordinal_type numFaces = (cellTopo.getDimension()==2) ? 1 : cellTopo.getFaceCount();
-    //const ordinal_type numFaces = cellTopo.getFaceCount();
     ordinal_type matDim = 0, matDim1 = 0, matDim2 = 0, numOrts = 0, numSubCells;
     for(ordinal_type i=0; i<numEdges; ++i) {
       matDim1 = std::max(matDim1, basis->getDofCount(1,i));
@@ -109,7 +108,7 @@ namespace Intrepid2 {
                                  BasisHostType const *cellBasis) {
 
     const auto cellTopo = cellBasis->getBaseCellTopology();
-    const ordinal_type numEdges = cellTopo.getEdgeCount();
+    const ordinal_type numEdges = (cellTopo.getDimension()==1) ? 1 : cellTopo.getEdgeCount();
     const ordinal_type numFaces = (cellTopo.getDimension()==2) ? 1 : cellTopo.getFaceCount();
     
     {
@@ -120,6 +119,12 @@ namespace Intrepid2 {
           auto mat = Kokkos::subview(matData,
               edgeId, edgeOrt,
               Kokkos::ALL(), Kokkos::ALL());
+          if(cellTopo.getDimension()==1)
+            Impl::OrientationTools::getCoeffMatrix_HGRAD
+              (mat,
+               *cellBasis, *cellBasis,
+               edgeId, edgeOrt);
+          else
           Impl::OrientationTools::getCoeffMatrix_HGRAD
             (mat,
              /// KK: mauro, this is an expensive construction for high order elements 
@@ -168,9 +173,8 @@ namespace Intrepid2 {
   init_HCURL(typename OrientationTools<DT>::CoeffMatrixDataViewType matData,
       BasisHostType const *cellBasis) {
     const auto cellTopo = cellBasis->getBaseCellTopology();
-    const ordinal_type numEdges = cellTopo.getEdgeCount();
+    const ordinal_type numEdges = (cellTopo.getDimension()==1) ? 1 : cellTopo.getEdgeCount();
     const ordinal_type numFaces = (cellTopo.getDimension()==2) ? 1 : cellTopo.getFaceCount();
-    //const ordinal_type numFaces = cellTopo.getFaceCount();
 
     {
       const ordinal_type numOrt = 2;
@@ -180,6 +184,12 @@ namespace Intrepid2 {
           auto mat = Kokkos::subview(matData,
                                      edgeId, edgeOrt,
                                      Kokkos::ALL(), Kokkos::ALL());
+            if(cellTopo.getDimension()==1)
+            Impl::OrientationTools::getCoeffMatrix_HCURL
+              (mat,
+               *cellBasis, *cellBasis,
+               edgeId, edgeOrt);
+          else
           Impl::OrientationTools::getCoeffMatrix_HCURL(mat,
               *cellBasis->getSubCellRefBasis(1,edgeId), *cellBasis,
               edgeId, edgeOrt);

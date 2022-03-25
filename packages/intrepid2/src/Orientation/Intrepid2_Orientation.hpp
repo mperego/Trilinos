@@ -88,6 +88,11 @@ namespace Intrepid2 {
                                              const shards::CellTopology cellTopo);
 
 
+
+    Orientation getSideOrientation(const shards::CellTopology cellTopo,
+                                   const ordinal_type subcellOrd);
+
+
     /*
     Function Removed. Use instead Impl::OrientationTools::getRefSubcellTangents
     template<typename refTanViewType>
