@@ -82,12 +82,12 @@ check_getCoeffMatrix_HGRAD(const subcellBasisType& subcellBasis,
 
   const ordinal_type cellDim = cellTopo.getDimension();
   const ordinal_type subcellDim = subcellTopo.getDimension();
-/*
-  INTREPID2_TEST_FOR_EXCEPTION( subcellDim >= cellDim,
+
+  INTREPID2_TEST_FOR_EXCEPTION( subcellDim > cellDim,
       std::logic_error,
       ">>> ERROR (Intrepid::OrientationTools::getCoeffMatrix_HGRAD): " \
-      "cellDim must be greater than subcellDim.");
-*/
+      "cellDim cannot be smaller than subcellDim.");
+
   const auto subcellBaseKey = subcellTopo.getBaseKey();
 
   INTREPID2_TEST_FOR_EXCEPTION( subcellBaseKey != shards::Line<>::key &&
@@ -260,7 +260,7 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   }
 
   // Print A Matrix
-  //*
+  /*
   {
     std::cout  << subcellId << "," << subcellOrt << ": |";
     for (ordinal_type i=0;i<ndofSubcell;++i) {
@@ -271,7 +271,7 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
     }
     std::cout <<std::endl;
   }
-  //*/
+  */
 
   {
     // move the data to original device memory

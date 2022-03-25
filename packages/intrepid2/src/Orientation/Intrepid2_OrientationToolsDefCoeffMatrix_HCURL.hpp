@@ -93,12 +93,11 @@ check_getCoeffMatrix_HCURL(const subcellBasisType& subcellBasis,
   const ordinal_type subcellDim = subcellTopo.getDimension();
 
 
-/*
-  INTREPID2_TEST_FOR_EXCEPTION( subcellDim >= cellDim,
+
+  INTREPID2_TEST_FOR_EXCEPTION( subcellDim > cellDim,
       std::logic_error,
       ">>> ERROR (Intrepid::OrientationTools::getCoeffMatrix_HCURL): " \
-      "cellDim must be greater than subcellDim.");
-      */
+      "cellDim cannot be smaller than subcellDim.");
 
   const auto subcellBaseKey = subcellTopo.getBaseKey();
   const auto cellBaseKey = cellTopo.getBaseKey();
