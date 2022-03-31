@@ -81,7 +81,8 @@ namespace Intrepid2 {
   public:
     template<typename elemNodeViewType>
     static Orientation getOrientation(const shards::CellTopology cellTopo,
-                                      const elemNodeViewType elemNodes);
+                                      const elemNodeViewType elemNodes,
+                                      bool isSide = false);
     
     static ordinal_type getEdgeOrdinalOfFace(const ordinal_type subsubcellOrd,
                                              const ordinal_type subcellOrd,

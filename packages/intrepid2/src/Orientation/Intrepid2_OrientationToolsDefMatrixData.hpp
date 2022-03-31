@@ -93,6 +93,8 @@ namespace Intrepid2 {
       init_HCURL(matData, basis);
     } else if (basis->getFunctionSpace() == FUNCTION_SPACE_HDIV) {
       init_HDIV(matData, basis);
+    } else if (basis->getFunctionSpace() == FUNCTION_SPACE_HVOL) {
+      init_HGRAD(matData, basis);
     }
     return matData;
   }
@@ -162,6 +164,50 @@ namespace Intrepid2 {
       }
     }
   }
+
+  //
+  // HVOL elements
+  //
+  template<typename DT>
+  template<typename BasisHostType>
+  void
+  OrientationTools<DT>::
+  init_HVOL(typename OrientationTools<DT>::CoeffMatrixDataViewType matData,
+                                 BasisHostType const *cellBasis) {
+
+    const auto cellTopo = cellBasis->getBaseCellTopology();
+    const ordinal_type numEdges = (cellTopo.getDimension()==1);
+    const ordinal_type numFaces = (cellTopo.getDimension()==2);
+
+    {
+      const ordinal_type numOrt = 2;
+      for (ordinal_type edgeId=0;edgeId<numEdges;++edgeId) {
+        if(cellBasis->getDofCount(1, edgeId) < 2) continue;
+        for (ordinal_type edgeOrt=0;edgeOrt<numOrt;++edgeOrt) {
+          auto mat = Kokkos::subview(matData,
+              edgeId, edgeOrt,
+              Kokkos::ALL(), Kokkos::ALL());
+          Impl::OrientationTools::getCoeffMatrix_HVOL
+            (mat, *cellBasis, edgeOrt);
+        }
+      }
+    }
+    {
+      for (ordinal_type faceId=0;faceId<numFaces;++faceId) {
+        // this works for triangles (numOrt=6) and quadratures (numOrt=8)
+        const ordinal_type numOrt = 2*cellTopo.getSideCount(2,faceId);
+        if(cellBasis->getDofCount(2, faceId) < 1) continue;
+        for (ordinal_type faceOrt=0;faceOrt<numOrt;++faceOrt) {
+          auto mat = Kokkos::subview(matData,
+              numEdges+faceId, faceOrt,
+              Kokkos::ALL(), Kokkos::ALL());
+            Impl::OrientationTools::getCoeffMatrix_HVOL
+              (mat, *cellBasis, faceOrt);
+        }
+      }
+    }
+  }
+
 
   //
   // HCURL elements
@@ -254,8 +300,8 @@ namespace Intrepid2 {
   typename OrientationTools<DT>::CoeffMatrixDataViewType
   OrientationTools<DT>::createCoeffMatrix(const BasisType* basis) {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_EXCEPTION( !basis->requireOrientation(), std::invalid_argument,
-                                  ">>> ERROR (OrientationTools::createCoeffMatrix): basis does not require orientations." );
+    //INTREPID2_TEST_FOR_EXCEPTION( !basis->requireOrientation(), std::invalid_argument,
+    //                              ">>> ERROR (OrientationTools::createCoeffMatrix): basis does not require orientations." );
 #endif
     Kokkos::push_finalize_hook( [=] {
       ortCoeffData=std::map<std::pair<std::string,ordinal_type>, typename OrientationTools<DT>::CoeffMatrixDataViewType>();

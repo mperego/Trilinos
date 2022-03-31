@@ -155,13 +155,15 @@ namespace Intrepid2 {
   inline
   Orientation
   Orientation::getOrientation(const shards::CellTopology cellTopo,
-                              const elemNodeViewType elemNodes) {
+                              const elemNodeViewType elemNodes,
+                              bool isSide) {
     static_assert(Kokkos::Impl::MemorySpaceAccess
                   <Kokkos::HostSpace,typename elemNodeViewType::device_type::memory_space>::accessible,
                   "host space cannot access elemNodeViewType");
 
     Orientation ort;
-    const ordinal_type nedge = cellTopo.getEdgeCount();
+    auto dim = cellTopo.getDimension();
+    const ordinal_type nedge = (isSide && dim==1) ? 1 : cellTopo.getEdgeCount();
 
     if (nedge > 0) {
       typename elemNodeViewType::non_const_value_type vertsSubCell[2];
@@ -176,7 +178,7 @@ namespace Intrepid2 {
       }
       ort.setEdgeOrientation(nedge, orts);
     }
-    const ordinal_type nface = (cellTopo.getDimension()==2) ? 1 : cellTopo.getFaceCount();
+    const ordinal_type nface = (isSide && dim==2) ? 1 : cellTopo.getFaceCount();
     //const ordinal_type nface = cellTopo.getFaceCount();
     if (nface > 0) {
       typename elemNodeViewType::non_const_value_type vertsSubCell[4];
@@ -196,25 +198,26 @@ namespace Intrepid2 {
 
   inline
   Orientation
-  Orientation::getSideOrientation(const shards::CellTopology cellTopo,
+  Orientation::getSideOrientation(const shards::CellTopology parentCellTopo,
                               const  ordinal_type subcellOrd) {
     Orientation sideOrt;
-    const ordinal_type numEdges = cellTopo.getEdgeCount();
+    const ordinal_type numEdges = parentCellTopo.getEdgeCount();
+    const ordinal_type dim = parentCellTopo.getDimension();
     ordinal_type edgeOrts[12];
     getEdgeOrientation(edgeOrts, numEdges);
 
-    if(cellTopo.getDimension()==2) {
+    if(dim==2) {
       sideOrt._edgeOrt |= (edgeOrts[subcellOrd] & 1);
-    } else if (cellTopo.getDimension()==3) {
-      const ordinal_type numSideEdges = cellTopo.getEdgeCount(cellTopo.getDimension()-1,subcellOrd);
+    } else if (dim==3) {
+      const ordinal_type numSideEdges = parentCellTopo.getEdgeCount(dim-1,subcellOrd);
       for(ordinal_type sideEdge = 0; sideEdge < numSideEdges; ++sideEdge) {
-        ordinal_type cellEdge = getEdgeOrdinalOfFace(sideEdge, subcellOrd, cellTopo);
+        ordinal_type cellEdge = getEdgeOrdinalOfFace(sideEdge, subcellOrd, parentCellTopo);
         sideOrt._edgeOrt |= (edgeOrts[cellEdge] & 1) << sideEdge;
       }
     }
 
-    if(cellTopo.getDimension()==3) {
-      const ordinal_type numFaces = cellTopo.getFaceCount();
+    if(dim==3) {
+      const ordinal_type numFaces = parentCellTopo.getFaceCount();
       ordinal_type faceOrts[6];
       getFaceOrientation(faceOrts, numFaces);
       sideOrt._faceOrt |= (faceOrts[subcellOrd] & 7);

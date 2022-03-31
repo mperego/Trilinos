@@ -1327,6 +1327,110 @@ det( DeterminantArrayViewType detArray, const MatrixViewType inMats );
         }
       }
     };
+
+
+
+    /**
+      \brief Functor to compute matvec see Intrepid2::RealSpaceTools for more
+    */
+    template<typename outMatViewType,
+             typename inLeftMatViewType,
+             typename inRightMatViewType>
+    struct F_matmat {
+      outMatViewType _outMats;
+      const inLeftMatViewType  _inLeftMats;
+      const inRightMatViewType  _inRightMats;
+
+      KOKKOS_INLINE_FUNCTION
+      F_matmat( outMatViewType outMats_,
+          inLeftMatViewType  inLeftMats_,
+          inRightMatViewType  inRightMats_ )
+        : _outMats(outMats_), _inLeftMats(inLeftMats_), _inRightMats(inRightMats_) {}
+
+      KOKKOS_INLINE_FUNCTION
+      void operator()(const ordinal_type iter) const {
+        const ordinal_type rLM = _inLeftMats.rank(), rRM = _inRightMats.rank(), rOM = _outMats.rank();
+        ordinal_type _i = iter, _j = 0;
+
+        if ( rOM > 3 )
+          unrollIndex( _i, _j,
+                             _outMats.extent(0),
+                             _outMats.extent(1),
+                             iter );
+
+        auto leftMat    = ( rLM == 2 ? Kokkos::subview(_inLeftMats,        Kokkos::ALL(), Kokkos::ALL()) :
+                        rLM == 3 ? Kokkos::subview(_inLeftMats,  _i,    Kokkos::ALL(), Kokkos::ALL()) :
+                                  Kokkos::subview(_inLeftMats,  _i, _j, Kokkos::ALL(), Kokkos::ALL()) );
+
+        auto rightMat    = ( rRM == 2 ? Kokkos::subview(_inRightMats,        Kokkos::ALL(), Kokkos::ALL()) :
+                        rRM == 3 ? Kokkos::subview(_inRightMats,  _i,    Kokkos::ALL(), Kokkos::ALL()) :
+                                  Kokkos::subview(_inRightMats,  _i, _j, Kokkos::ALL(), Kokkos::ALL()) );
+
+        auto outMat = ( rOM == 2 ? Kokkos::subview(_outMats,       Kokkos::ALL(), Kokkos::ALL()) :
+                        rOM == 3 ? Kokkos::subview(_outMats, _i,    Kokkos::ALL(), Kokkos::ALL()) :
+                                  Kokkos::subview(_outMats, _i, _j, Kokkos::ALL(), Kokkos::ALL()) );
+
+        const ordinal_type iend = outMat.extent(0);
+        const ordinal_type jend = outMat.extent(1);
+        const ordinal_type kend = leftMat.extent(1);
+
+        for (ordinal_type i=0;i<iend;++i) {
+          for (ordinal_type j=0;j<jend;++j) {
+            outMat(i,j) = 0;
+            for (ordinal_type k=0;k<kend;++k)
+              outMat(i,j) += leftMat(i, k)*rightMat(k,j);
+          }
+        }
+      }
+    };
+
+    /**
+      \brief Functor to compute matvec see Intrepid2::RealSpaceTools for more
+    */
+    template<typename outMatViewType,
+             typename inMatViewType>
+    struct F_AtA {
+      outMatViewType _outMats;
+      const inMatViewType  _inMats;
+
+      KOKKOS_INLINE_FUNCTION
+      F_AtA( outMatViewType outMats_,
+          inMatViewType  inMats_)
+        : _outMats(outMats_), _inMats(inMats_) {}
+
+      KOKKOS_INLINE_FUNCTION
+      void operator()(const ordinal_type iter) const {
+        const ordinal_type rIM = _inMats.rank(), rOM = _outMats.rank();
+        ordinal_type _i = iter, _j = 0;
+
+        if ( rOM > 3 )
+          unrollIndex( _i, _j,
+                             _outMats.extent(0),
+                             _outMats.extent(1),
+                             iter );
+
+        auto inMat    = ( rIM == 2 ? Kokkos::subview(_inMats,        Kokkos::ALL(), Kokkos::ALL()) :
+                        rIM == 3 ? Kokkos::subview(_inMats,  _i,    Kokkos::ALL(), Kokkos::ALL()) :
+                                  Kokkos::subview(_inMats,  _i, _j, Kokkos::ALL(), Kokkos::ALL()) );
+
+        auto outMat = ( rOM == 2 ? Kokkos::subview(_outMats,       Kokkos::ALL(), Kokkos::ALL()) :
+                        rOM == 3 ? Kokkos::subview(_outMats, _i,    Kokkos::ALL(), Kokkos::ALL()) :
+                                  Kokkos::subview(_outMats, _i, _j, Kokkos::ALL(), Kokkos::ALL()) );
+
+        const ordinal_type iend = outMat.extent(0);
+        const ordinal_type jend = outMat.extent(1);
+        const ordinal_type kend = inMat.extent(0);
+
+        for (ordinal_type i=0;i<iend;++i) {
+          for (ordinal_type j=0;j<jend;++j) {
+            outMat(i,j) = 0;
+            for (ordinal_type k=0;k<kend;++k)
+              outMat(i,j) += inMat(k, i)*inMat(k,j);
+          }
+        }
+      }
+    };
+
   }
 
   template<typename DeviceType>
@@ -1410,6 +1514,123 @@ det( DeterminantArrayViewType detArray, const MatrixViewType inMats );
     Kokkos::RangePolicy<ExecSpaceType,Kokkos::Schedule<Kokkos::Static> > policy(0, loopSize);
     Kokkos::parallel_for( policy, FunctorType(matVecs, inMats, inVecs) );
   }
+
+  template<typename DeviceType>
+  template<typename outMatValueType, class ...outMatProperties,
+           typename inLeftMatValueType,  class ...inLeftMatProperties,
+           typename inRightMatValueType,  class ...inRightMatProperties>
+  void
+  RealSpaceTools<DeviceType>::
+  matmat(       Kokkos::DynRankView<outMatValueType,outMatProperties...> outMats,
+          const Kokkos::DynRankView<inLeftMatValueType, inLeftMatProperties...>  inLeftMats,
+          const Kokkos::DynRankView<inRightMatValueType, inRightMatProperties...>  inRightMats ) {
+
+#ifdef HAVE_INTREPID2_DEBUG
+    INTREPID2_TEST_FOR_EXCEPTION( inLeftMats.rank() < 2 || inLeftMats.rank() > 4, std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::matmat): Rank of left matrix array must be 2, 3 or 4!");
+    INTREPID2_TEST_FOR_EXCEPTION( outMats.rank() < 2 || outMats.rank() > 4, std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::matmat): Rank of output matrix array must be 2, 3 or 4!");
+    INTREPID2_TEST_FOR_EXCEPTION( inRightMats.rank() < 2 || inRightMats.rank() > 4, std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::matmat): Rank of right matrix array must be 2, 3 or 4!");
+    if (inLeftMats.rank() == 2) {
+      // a single matrix, multiple input and output
+      INTREPID2_TEST_FOR_EXCEPTION( outMats.rank() != inRightMats.rank(), std::invalid_argument,
+                                    ">>> ERROR (RealSpaceTools::matmat): The output matrix and right input matrix do not have compatible ranks!");
+      // output must match
+      for (ordinal_type i=0;i< (static_cast<ordinal_type>(inRightMats.rank())-2);++i) {
+        INTREPID2_TEST_FOR_EXCEPTION( outMats.extent(i) != inRightMats.extent(i), std::invalid_argument,
+                                      ">>> ERROR (RealSpaceTools::matmat): Dimensions of right input matrix and output matrix do not agree!");
+      }
+    } else if (inRightMats.rank() == 2) {
+      // multiple matrix, single input and multiple output
+      INTREPID2_TEST_FOR_EXCEPTION( inLeftMats.rank() != outMats.rank(), std::invalid_argument,
+                                    ">>> ERROR (RealSpaceTools::matmat): The output matrix and left input matrix do not have compatible ranks!");
+      for (ordinal_type i=0;i<(static_cast<ordinal_type>(inLeftMats.rank())-2);++i) {
+        INTREPID2_TEST_FOR_EXCEPTION( inLeftMats.extent(i) != outMats.extent(i), std::invalid_argument,
+                                      ">>> ERROR (RealSpaceTools::matmat): Dimensions of left input matrix and output matrix do not agree!");
+      }
+    } else {
+      // multiple matrix, multiple input and multiple output
+      INTREPID2_TEST_FOR_EXCEPTION( (inLeftMats.rank() != outMats.rank()) || (inLeftMats.rank() != inRightMats.rank()), std::invalid_argument,
+                                    ">>> ERROR (RealSpaceTools::matmat): The matrices do not have compatible ranks!");
+      for (ordinal_type i=0;i<(static_cast<ordinal_type>(inLeftMats.rank())-2);++i) {
+        INTREPID2_TEST_FOR_EXCEPTION( (inLeftMats.extent(i) != outMats.extent(i)) || (inLeftMats.extent(i) != inRightMats.extent(i)), std::invalid_argument,
+                                        ">>> ERROR (RealSpaceTools::matmat): Dimensions of matrices do not agree!");
+      }
+    }
+
+    // matmat compatibility
+    INTREPID2_TEST_FOR_EXCEPTION( inLeftMats.extent(inLeftMats.rank()-2) != outMats.extent(outMats.rank()-2) ||
+                                  inLeftMats.extent(inLeftMats.rank()-1) != inRightMats.extent(inRightMats.rank()-2), std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::matmat): Matrices dimensions are not compatible each other.");
+
+#endif
+    using MemSpaceType = typename DeviceType::memory_space;
+    constexpr bool are_accessible =
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(outMats)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(inLeftMats)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(inRightMats)::memory_space>::accessible;
+    static_assert(are_accessible, "RealSpaceTools<DeviceType>::matmat(..): input/output views' memory spaces are not compatible with DeviceType");
+
+    using FunctorType = FunctorRealSpaceTools::F_matmat<decltype(outMats),decltype(inLeftMats),decltype(inRightMats)>;
+
+    size_type loopSize = 1;
+    const ordinal_type r = outMats.rank() - 2;
+    for (ordinal_type i=0;i<r;++i)
+      loopSize *= outMats.extent(i);
+
+    using ExecSpaceType = typename DeviceType::execution_space;
+    Kokkos::RangePolicy<ExecSpaceType,Kokkos::Schedule<Kokkos::Static> > policy(0, loopSize);
+    Kokkos::parallel_for( policy, FunctorType(outMats, inLeftMats, inRightMats) );
+  }
+
+  template<typename DeviceType>
+  template<typename outMatValueType, class ...outMatProperties,
+           typename inMatValueType,  class ...inMatProperties>
+  void
+  RealSpaceTools<DeviceType>::
+  AtA(       Kokkos::DynRankView<outMatValueType,outMatProperties...> outMats,
+          const Kokkos::DynRankView<inMatValueType, inMatProperties...>  inMats) {
+
+#ifdef HAVE_INTREPID2_DEBUG
+    INTREPID2_TEST_FOR_EXCEPTION( inMats.rank() < 2 || inMats.rank() > 4, std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::AtA): Rank of input matrix array must be 2, 3 or 4!");
+
+    INTREPID2_TEST_FOR_EXCEPTION( inMats.rank() != outMats.rank(), std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::AtA): The matrices do not have the same ranks!");
+    for (ordinal_type i=0;i<(static_cast<ordinal_type>(inMats.rank())-2);++i) {
+      INTREPID2_TEST_FOR_EXCEPTION( inMats.extent(i) != outMats.extent(i), std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::AtA): Dimensions of matrices arrays do not agree!");
+    }
+    // matmat compatibility
+    INTREPID2_TEST_FOR_EXCEPTION( inMats.extent(inMats.rank()-1) != outMats.extent(outMats.rank()-1) ||
+                                  outMats.extent(outMats.rank()-1) != outMats.extent(outMats.rank()-2), std::invalid_argument,
+                                  ">>> ERROR (RealSpaceTools::AtA): Matrices dimensions are not compatible.");
+
+#endif
+    using MemSpaceType = typename DeviceType::memory_space;
+    constexpr bool are_accessible =
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(outMats)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(inMats)::memory_space>::accessible;
+    static_assert(are_accessible, "RealSpaceTools<DeviceType>::AtA(..): input/output views' memory spaces are not compatible with DeviceType");
+
+    using FunctorType = FunctorRealSpaceTools::F_AtA<decltype(outMats),decltype(inMats)>;
+
+    size_type loopSize = 1;
+    const ordinal_type r = outMats.rank() - 2;
+    for (ordinal_type i=0;i<r;++i)
+      loopSize *= outMats.extent(i);
+
+    using ExecSpaceType = typename DeviceType::execution_space;
+    Kokkos::RangePolicy<ExecSpaceType,Kokkos::Schedule<Kokkos::Static> > policy(0, loopSize);
+    Kokkos::parallel_for( policy, FunctorType(outMats, inMats) );
+  }
+
 
   // ------------------------------------------------------------------------------------
 

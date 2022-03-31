@@ -417,14 +417,31 @@ ProjectionTools<DeviceType>::getL2EvaluationPoints(typename BasisType::ScalarVie
       for(int i=0; i<faceEPoints3D.extent(0);i++)
         std::cout << faceEPoints3D(i,0) << "," << faceEPoints3D(i,1) << "," <<faceEPoints3D(i,2)<<std::endl;
     }
-
   }
 
 
   if(numVols > 0) {
     auto pointsRange = ePointsRange(dim, 0);
     auto cellEPoints = Kokkos::create_mirror_view_and_copy(MemSpaceType(),projStruct->getEvalPoints(dim,0,ePointType));
-    RealSpaceTools<DeviceType>::clone(Kokkos::subview(ePoints, Kokkos::ALL(), pointsRange, Kokkos::ALL()), cellEPoints);
+    if(dim == 3)
+      RealSpaceTools<DeviceType>::clone(Kokkos::subview(ePoints, Kokkos::ALL(), pointsRange, Kokkos::ALL()), cellEPoints);
+    else {
+      std::cout << "I'm here now! Is this HDiv? " << dim << std::endl;
+      const auto topoKey = refTopologyKey(dim,0);
+      RealSpaceTools<DeviceType>::clone(Kokkos::subview(ePoints, Kokkos::ALL(), pointsRange, Kokkos::ALL()), cellEPoints);
+        Kokkos::parallel_for
+      ("Evaluate Points",
+          Kokkos::RangePolicy<ExecSpaceType, int> (0, numCells),
+          KOKKOS_LAMBDA (const size_t ic) {
+          ordinal_type ort = 0;
+          if(dim == 1)
+            orts(ic).getEdgeOrientation(&ort,1);
+          else if (dim == 2)
+            orts(ic).getFaceOrientation(&ort,1);
+          std::cout << "Ecco " << ort << std::endl;
+          Impl::OrientationTools::mapToModifiedReference(Kokkos::subview(ePoints,  ic, pointsRange, Kokkos::ALL()), cellEPoints,topoKey,ort);
+      });
+    }
   }
 }
 /*
@@ -738,14 +755,26 @@ ProjectionTools<DeviceType>::getL2BasisCoeffs(Kokkos::DynRankView<basisCoeffsVal
         std::cout << "Hexa projection on edge " << ie << "\n";
       for(int i=0; i<edgeCardinality; ++i)
         std::cout<< edgeDof(i) << " " << basisCoeffs(0,edgeDof(i)) <<std::endl;
-      for(ordinal_type iq=0; iq <numTargetEPoints; ++iq) {
-        std::cout<< "(" <<
-            targetEPoints(0,offsetTarget+iq,dim-2) <<", "<<
-            targetEPoints(0,offsetTarget+iq,dim-1) <<")"<<
-            "{" << targetAtTargetEPoints(0,offsetTarget+iq,dim-2) << "," << targetAtTargetEPoints(0,offsetTarget+iq,dim-1) <<"} [";
-        for(int i=0; i<edgeCardinality; ++i)
-          std::cout<< "(" << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,dim-2) << ", " << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,dim-1) <<"), ";
-        std::cout << "]"<<std::endl;
+      if(isHGradBasis) {
+        for(ordinal_type iq=0; iq <numTargetEPoints; ++iq) {
+          std::cout<< "(" <<
+              targetEPoints(0,offsetTarget+iq,dim-2) <<", "<<
+              targetEPoints(0,offsetTarget+iq,dim-1) <<")"<<
+              "{" << targetAtTargetEPoints(0,offsetTarget+iq)<<"} [";
+          for(int i=0; i<edgeCardinality; ++i)
+            std::cout<< "(" << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,0) <<"), ";
+          std::cout << "]"<<std::endl;
+        }
+      } else {
+        for(ordinal_type iq=0; iq <numTargetEPoints; ++iq) {
+          std::cout<< "(" <<
+              targetEPoints(0,offsetTarget+iq,dim-2) <<", "<<
+              targetEPoints(0,offsetTarget+iq,dim-1) <<")"<<
+              "{" << targetAtTargetEPoints(0,offsetTarget+iq,dim-2) << "," << targetAtTargetEPoints(0,offsetTarget+iq,dim-1) <<"} [";
+          for(int i=0; i<edgeCardinality; ++i)
+            std::cout<< "(" << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,dim-2) << ", " << basisAtTargetEPoints(0,edgeDof(i),offsetTarget+iq,dim-1) <<"), ";
+          std::cout << "]"<<std::endl;
+        }
       }
     }
 

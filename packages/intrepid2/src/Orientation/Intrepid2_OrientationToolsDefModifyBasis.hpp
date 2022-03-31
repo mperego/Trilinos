@@ -64,7 +64,8 @@ namespace Intrepid2 {
   OrientationTools<DT>::
   getOrientation(      Kokkos::DynRankView<elemOrtValueType,elemOrtProperties...> elemOrts,
                  const Kokkos::DynRankView<elemNodeValueType,elemNodeProperties...> elemNodes,
-                 const shards::CellTopology cellTopo) {
+                 const shards::CellTopology cellTopo,
+                 bool isSide) {
     // small meta data modification and it uses shards; let's do this on host
     auto elemOrtsHost = Kokkos::create_mirror_view(elemOrts);
     auto elemNodesHost = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), elemNodes);
@@ -72,7 +73,7 @@ namespace Intrepid2 {
     const ordinal_type numCells = elemNodes.extent(0);
     for (auto cell=0;cell<numCells;++cell) {
       const auto nodes = Kokkos::subview(elemNodesHost, cell, Kokkos::ALL());
-      elemOrtsHost(cell) = Orientation::getOrientation(cellTopo, nodes);
+      elemOrtsHost(cell) = Orientation::getOrientation(cellTopo, nodes, isSide);
     }
 
     Kokkos::deep_copy(elemOrts, elemOrtsHost);

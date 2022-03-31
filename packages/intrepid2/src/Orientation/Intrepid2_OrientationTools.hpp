@@ -257,6 +257,14 @@ namespace Intrepid2 {
                                   const ordinal_type cellOrt);
 
 
+      template<typename pointType>
+      KOKKOS_INLINE_FUNCTION
+      static void
+      getJacobianDetOfOrientationMap(pointType* det,
+                             const unsigned cellTopoKey,
+                             const ordinal_type cellOrt);
+
+
       /** \brief  Computes the (oriented) subCell tangents
           \param  tangents        [out] - rank-2 (scD,D), tangents of the subcell. scD: subCell dimension, D: parent cell dimension
           \param  subcellParam    [in]  - rank-2 (N, scD+1), subCells parametrization. N:number of subcells, scD: subCell dimension
@@ -335,6 +343,15 @@ namespace Intrepid2 {
                            const cellBasisHostType& cellBasis,
                            const ordinal_type subcellId,
                            const ordinal_type subcellOrt);
+
+      template<typename OutputViewType,
+               typename cellBasisHostType>
+      inline
+      static void
+      getCoeffMatrix_HVOL(OutputViewType &output,
+                           const cellBasisHostType& cellBasis,
+                           const ordinal_type cellOrt);
+
 
       /** \brief  Compute orientation matrix for HCURL basis for a given subcell
           and its reference basis
@@ -425,6 +442,13 @@ namespace Intrepid2 {
     static void init_HDIV(CoeffMatrixDataViewType matData,
                           BasisHostType const *cellBasis);
     
+    /** \brief  Compute orientation matrix for HVOL basis
+     */
+    template<typename BasisHostType>
+    inline
+    static void init_HVOL(CoeffMatrixDataViewType matData,
+                           BasisHostType const *cellBasis);
+
   public:
 
     /** \brief  Create coefficient matrix.
@@ -450,7 +474,9 @@ namespace Intrepid2 {
     static void
     getOrientation(Kokkos::DynRankView<elemOrtValueType,elemOrtProperties...> elemOrts,
                    const Kokkos::DynRankView<elemNodeValueType,elemNodeProperties...> elemNodes,
-                   const shards::CellTopology cellTopo);
+                   const shards::CellTopology cellTopo,
+                   bool isSide = false);
+
 
     /** \brief  Modify basis due to orientation
         \param  output        [out]  - output array
@@ -480,6 +506,7 @@ namespace Intrepid2 {
 #include "Intrepid2_OrientationToolsDefCoeffMatrix_HGRAD.hpp"
 #include "Intrepid2_OrientationToolsDefCoeffMatrix_HCURL.hpp"
 #include "Intrepid2_OrientationToolsDefCoeffMatrix_HDIV.hpp"
+#include "Intrepid2_OrientationToolsDefCoeffMatrix_HVOL.hpp"
 #include "Intrepid2_OrientationToolsDefMatrixData.hpp"
 #include "Intrepid2_OrientationToolsDefModifyBasis.hpp"
 

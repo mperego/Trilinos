@@ -115,7 +115,7 @@ namespace Example {
     KOKKOS_INLINE_FUNCTION
     operator()(const double& x, const double& y, const double& z, const int& comp) const {
 
-      double f0 = y;//3;
+      double f0 = y;
       double f1 = 0;//std::pow(y, degree-1);
       double f2 = 1;//std::pow(x+z, degree-1);
 
@@ -516,7 +516,7 @@ int feProjection(int argc, char *argv[]) {
       ots::getOrientation(elemOrts, elemNodesGID, *cellTopoPtr);
     Kokkos::DynRankView<Intrepid2::Orientation,DeviceSpaceType> sideOrts("sideOrts", numBoundarySides);
     if(sideBasisPtr->requireOrientation())
-      ots::getOrientation(sideOrts, sideNodesGID, sideBasisPtr->getBaseCellTopology());
+      ots::getOrientation(sideOrts, sideNodesGID, sideBasisPtr->getBaseCellTopology(), true);
 
 
     orientationTimer = Teuchos::null;
@@ -566,12 +566,14 @@ int feProjection(int argc, char *argv[]) {
 
       Kokkos::deep_copy(sideEvaluationPointsOrig,sideEvaluationPoints);
 
-      DynRankView targetAtEvalPoints;
+      DynRankView refTargetAtEvalPoints, physTargetAtEvalPoints;
       if(functionSpace == Intrepid2::FUNCTION_SPACE_HCURL || functionSpace == Intrepid2::FUNCTION_SPACE_HDIV) {
-        targetAtEvalPoints = DynRankView("targetAtEvalPoints", numOwnedElems, numPoints, dim);
+        refTargetAtEvalPoints = DynRankView("targetAtEvalPoints", numOwnedElems, numPoints, dim);
+        physTargetAtEvalPoints = DynRankView("targetAtEvalPoints", numOwnedElems, numPoints, dim);
+      } else {
+        refTargetAtEvalPoints = DynRankView("targetAtEvalPoints", numOwnedElems, numPoints);
+        physTargetAtEvalPoints = DynRankView("targetAtEvalPoints", numOwnedElems, numPoints);
       }
-      else
-        targetAtEvalPoints = DynRankView("targetAtEvalPoints", numOwnedElems, numPoints);
 
       DynRankView ConstructWithLabel(physEvalPoints, numOwnedElems, numPoints, dim);
       {
@@ -675,44 +677,32 @@ int feProjection(int argc, char *argv[]) {
           auto x = physEvalPoints(ic,i,0), y = physEvalPoints(ic,i,1);
           auto z = (dim==2) ? 0.0 : physEvalPoints(ic,i,2);
           scalar_t tmp[3];
-          switch (functionSpace) {
-          case Intrepid2::FUNCTION_SPACE_HGRAD:
-            targetAtEvalPoints(ic,i) = fun(x,y,z,0);
-            break;
-          case Intrepid2::FUNCTION_SPACE_HCURL:
-            for(int d=0;d<basisDimension;d++)
-              targetAtEvalPoints(ic,i,d) = fun(x,y,z,d);
-            for(int j=0;j<dim;j++) {
-              tmp[j] =0.0;
-              for(int d=0;d<dim;d++)
-                tmp[j] += jacobian(ic,i,d,j)*targetAtEvalPoints(ic,i,d);
-            }
-            for(int j=0;j<dim;j++)
-              targetAtEvalPoints(ic,i,j) = tmp[j];
-            break;
-          case Intrepid2::FUNCTION_SPACE_HDIV:
-            for(int d=0;d<basisDimension;d++)
-              targetAtEvalPoints(ic,i,d) = fun(x,y,z,d);
-            for(int j=0;j<dim;j++) {
-              tmp[j] =0.0;
-              for(int d=0;d<dim;d++)
-                tmp[j] += jacobian_det(ic,i)*jacobian_inv(ic,i,j,d)*targetAtEvalPoints(ic,i,d);
-            }
-            for(int j=0;j<dim;j++)
-              targetAtEvalPoints(ic,i,j) = tmp[j];
-            break;
-          case Intrepid2::FUNCTION_SPACE_HVOL:
-            targetAtEvalPoints(ic,i) = fun(x,y,z,0)*jacobian_det(ic,i);
-            break;
-          default: {}
-          }
+          for(int d=0;d<basisDimension;d++)
+           physTargetAtEvalPoints(ic,i,d) = fun(x,y,z,d);
         }
       });
+
+      switch (functionSpace) {
+        case Intrepid2::FUNCTION_SPACE_HGRAD:
+          fst::HGRADtransformInverseVALUE(refTargetAtEvalPoints,physTargetAtEvalPoints);
+          break;
+        case Intrepid2::FUNCTION_SPACE_HCURL:
+          fst::HCURLtransformInverseVALUE(refTargetAtEvalPoints,jacobian,physTargetAtEvalPoints);
+          break;
+        case Intrepid2::FUNCTION_SPACE_HDIV:
+          fst::HDIVtransformInverseVALUE(refTargetAtEvalPoints,jacobian_inv,jacobian_det,physTargetAtEvalPoints);
+          break;
+        case Intrepid2::FUNCTION_SPACE_HVOL:
+          fst::HVOLtransformInverseVALUE(refTargetAtEvalPoints,jacobian_det,physTargetAtEvalPoints);
+          break;
+        default: {}
+      }
+
 
       //OrientationTools::getRefSideTangentsAndNormal(tangentsAndNormal, subcellParam, subcellBaseKey, subcellId, subcellOrt);
 
       pts::getL2BasisCoeffs(basisCoeffsL2Proj,
-          targetAtEvalPoints,
+          refTargetAtEvalPoints,
           evaluationPoints,
           elemOrts,
           basis.get(),
@@ -724,8 +714,10 @@ int feProjection(int argc, char *argv[]) {
       //DynRankView ConstructWithLabel(jacobian_det, numBoundarySides, numSidePoints);
       //DynRankView ConstructWithLabel(jacobian_inv, numBoundarySides, numSidePoints, sideDim, sideDim);
       DynRankView ConstructWithLabel(normals, numBoundarySides, numSidePoints, dim);
-      DynRankView ConstructWithLabel(tangents0, numBoundarySides, numSidePoints,dim);
-      DynRankView ConstructWithLabel(tangents1, numBoundarySides, numSidePoints,dim);
+      DynRankView ConstructWithLabel(tangents, numBoundarySides, numSidePoints, dim, dim-1);
+      DynRankView ConstructWithLabel(metricTensor, numBoundarySides, numSidePoints, dim-1, dim-1);
+      DynRankView ConstructWithLabel(metricTensor_inv, numBoundarySides, numSidePoints, dim-1, dim-1);
+      DynRankView ConstructWithLabel(metricTensor_det, numBoundarySides, numSidePoints);
 
       //ct::setJacobianDet (jacobian_det, jacobian);
       //ct::setJacobianInv (jacobian_inv, jacobian);
@@ -745,7 +737,18 @@ int feProjection(int argc, char *argv[]) {
           Kokkos::subview(physVertexes,std::make_pair(elem,elem+1),Kokkos::ALL(),Kokkos::ALL()), *cellTopoPtr);
       }
       ct::getPhysicalFaceNormals(normals,jacobian,sideFlag,*cellTopoPtr);
+      auto tangents0 = Kokkos::subview(tangents, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
+      auto tangents1 = Kokkos::subview(tangents, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 1);
       ct::getPhysicalFaceTangents(tangents0, tangents1,jacobian,sideFlag,*cellTopoPtr);
+      rst::AtA(metricTensor,tangents);
+      rst::inverse(metricTensor_inv,metricTensor);
+      rst::det(metricTensor_det,metricTensor);
+
+
+      Kokkos::parallel_for(Kokkos::RangePolicy<typename DeviceSpaceType::execution_space>(0,numBoundarySides),
+      KOKKOS_LAMBDA (const int &is) {
+
+      });
 
 
       Kokkos::parallel_for(Kokkos::RangePolicy<typename DeviceSpaceType::execution_space>(0,numBoundarySides),
@@ -775,8 +778,14 @@ int feProjection(int argc, char *argv[]) {
 
             elemOrts(elem).getFaceOrientation(sideOrt, 6);
             Intrepid2::Impl::OrientationTools::getJacobianOfOrientationMap(jac,sideBasisPtr->getBaseCellTopology(),sideOrt[elemSide]);
+            int ort;
+            sideOrts(is).getFaceOrientation(&ort,1);
+            //Intrepid2::Impl::OrientationTools::getJacobianOfOrientationMap(jac,sideBasisPtr->getBaseCellTopology(),ort);
             double jacDet = jac(0,0)*jac(1,1)-jac(0,1)*jac(1,0);
-            targetAtSideEvalPoints(is,i) = -fun(x,y,z,0)*norm*jacDet;
+
+            std::cout << "Orts: " << sideOrt[elemSide] << " " << ort << " " << jacDet << std::endl;
+
+            targetAtSideEvalPoints(is,i) = (fun(x,y,z,0)*normal(0)+fun(x,y,z,1)*normal(1)+fun(x,y,z,2)*normal(2))/norm*norm*jacDet;
           }
             break;
           case Intrepid2::FUNCTION_SPACE_HCURL:
@@ -786,21 +795,19 @@ int feProjection(int argc, char *argv[]) {
             auto tangent1 = Kokkos::subview(tangents1,is,i,Kokkos::ALL());
             double norm = std::sqrt(normal(0)*normal(0)+normal(1)*normal(1)+normal(2)*normal(2));
 
-            auto physJac = Kokkos::subview(jacobian,is,i,Kokkos::ALL(),Kokkos::ALL());
-            elemOrts(elem).getFaceOrientation(sideOrt, 6);
-            //OrientationTools::getRefSubcellTangents(trJacobianF, subcellParam, subcellBaseKey, subcellId, subcellOrt);
-            Intrepid2::Impl::OrientationTools::getRefSubcellTangents(jacTr, subcellParam, sideBasisPtr->getBaseCellTopology().getKey(), elemSide, sideOrt[elemSide]);
+            //auto physJac = Kokkos::subview(jacobian,is,i,Kokkos::ALL(),Kokkos::ALL());
+            //elemOrts(elem).getFaceOrientation(sideOrt, 6);
+            //Intrepid2::Impl::OrientationTools::getRefSubcellTangents(jacTr, subcellParam, sideBasisPtr->getBaseCellTopology().getKey(), elemSide, sideOrt[elemSide]);
 
-            //targetAtSideEvalPoints(is,i) = -fun(x,y,z,0)*norm*jacDet;
-            double funCrossNorml3d[3] = {0., -fun(x,y,z,2)*norm, fun(x,y,z,1)*norm};
+            double funCrossNorml3d[3] = {0., -fun(x,y,z,2), fun(x,y,z,1)};
             double funCrossNorml[2] = {0.,0.};
             double t0[3],t1[3];
             for(int i=0; i<3; ++i){
-              t0[i]=t1[i]=0;
-              for(int j=0;j<3;j++) {
-                t0[i] += physJac(i,j)*jacTr(0,j);
-                t1[i] += physJac(i,j)*jacTr(1,j);
-              }
+              //t0[i]=t1[i]=0;
+              //for(int j=0;j<3;j++) {
+              //  t0[i] += physJac(i,j)*jacTr(0,j);
+              //  t1[i] += physJac(i,j)*jacTr(1,j);
+              //}
               t0[i] = tangent0(i);
               t1[i] = tangent1(i);
               funCrossNorml[0] += t0[i]*funCrossNorml3d[i];
@@ -817,7 +824,7 @@ int feProjection(int argc, char *argv[]) {
               a11 += t1[i]*t1[i];
             }
           //  std::cout << "A: |" << a00 << " " << a01 << "; "<< a01 << " " << a11<< "|"<< std::endl;
-            double detA = a00*a11-a01*a01;
+            double detA = sqrt(a00*a11-a01*a01);
             double tmp = a00;
             a00 = a11/detA;
             a01 = -a01/detA;
@@ -877,6 +884,9 @@ int feProjection(int argc, char *argv[]) {
           int elemDof = basis->getDofOrdinal(0,node,0);
           int sideDof = sideBasisPtr->getDofOrdinal(0,sideNode,0);
           std::cout << "Point: " << node << ": " << basisCoeffsL2Proj(elem,elemDof) << " " << sideBasisCoeffsL2Proj(side,sideDof) << " " << basisCoeffsL2Proj(elem,elemDof) - sideBasisCoeffsL2Proj(side,sideDof) <<std::endl;
+          if(std::abs(basisCoeffsL2Proj(elem,elemDof)-sideBasisCoeffsL2Proj(side,sideDof))>1e-10) {
+             std::cout << "ERROR: Vertex DoFs don't match \n";
+          }
         }
       }
       std::cout << "Dofs on Edges: " <<std::endl;
@@ -886,6 +896,9 @@ int feProjection(int argc, char *argv[]) {
             int elemDof = basis->getDofOrdinal(1,edge,l);
             int sideDof = sideBasisPtr->getDofOrdinal(1,sideEdge,l);
             std::cout << "Edge: " << edge << ": " << basisCoeffsL2Proj(elem,elemDof) << " " << sideBasisCoeffsL2Proj(side,sideDof) << " " << basisCoeffsL2Proj(elem,elemDof) - sideBasisCoeffsL2Proj(side,sideDof) <<std::endl;
+            if(std::abs(basisCoeffsL2Proj(elem,elemDof)-sideBasisCoeffsL2Proj(side,sideDof))>1e-10) {
+               std::cout << "ERROR: Edges DoFs don't match \n";
+            }
         }
       }
       elemOrts(elem).getFaceOrientation(faceOrt, 6);
@@ -893,7 +906,11 @@ int feProjection(int argc, char *argv[]) {
       for(int l=0; l<sideBasisPtr->getDofCount(2,0); l++) {
         int elemDof = basis->getDofOrdinal(2,elemSide,l);
         int sideDof = sideBasisPtr->getDofOrdinal(2,0,l);
-        std::cout << "Face: " << elemSide << ": " << basisCoeffsL2Proj(elem,elemDof) << " " << sideBasisCoeffsL2Proj(side,sideDof) << " " << basisCoeffsL2Proj(elem,elemDof) - sideBasisCoeffsL2Proj(side,sideDof) <<std::endl;
+        double diff = std::abs(basisCoeffsL2Proj(elem,elemDof)-sideBasisCoeffsL2Proj(side,sideDof));
+        std::cout << "Face: " << elemSide << ": " << basisCoeffsL2Proj(elem,elemDof) << " " << sideBasisCoeffsL2Proj(side,sideDof) << ", " << diff <<std::endl;
+        if(diff>1e-10) {
+           std::cout << "ERROR: Side DoFs don't match \n";
+        }
       }
     }
 

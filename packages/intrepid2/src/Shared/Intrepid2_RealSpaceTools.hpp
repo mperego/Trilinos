@@ -407,6 +407,20 @@ namespace Intrepid2 {
             const Kokkos::DynRankView<inMatValueType, inMatProperties...>  inMats,
             const Kokkos::DynRankView<inVecValueType, inVecProperties...>  inVecs );
     
+    template<typename outMatValueType, class ...outMatProperties,
+             typename inLeftMatValueType,  class ...inLeftMatProperties,
+             typename inRightMatValueType,  class ...inRightMatProperties>
+    static void
+    matmat(       Kokkos::DynRankView<outMatValueType,outMatProperties...> outMats,
+            const Kokkos::DynRankView<inLeftMatValueType, inLeftMatProperties...>  inLeftMats,
+            const Kokkos::DynRankView<inRightMatValueType, inRightMatProperties...>  inRightMats );
+
+    template<typename outMatValueType, class ...outMatProperties,
+             typename inMatValueType,  class ...inMatProperties>
+    static void
+    AtA(       Kokkos::DynRankView<outMatValueType,outMatProperties...> outMats,
+         const Kokkos::DynRankView<inMatValueType, inMatProperties...>  inMats);
+
     /** \brief Vector product using multidimensional arrays:\n
         <b><var>vecProd</var></b> = <b><var>inVecLeft</var></b> x <b><var>inVecRight</var></b>
       
