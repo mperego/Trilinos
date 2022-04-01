@@ -275,9 +275,6 @@ int feAssemblyHex(int argc, char *argv[]) {
         global_ordinal_t(nz*pz),
         px,py,pz,bx,by,bz);
 
-    connManager->buildLocalBoundarySides();
-    const auto boundarySides = connManager->getBoundarySides(2);
-
     // *********************************** COMPUTE GLOBAL IDs OF VERTICES AND DOFs  ************************************
 
     // build the dof manager, and assocaite with the topology
@@ -345,17 +342,6 @@ int feAssemblyHex(int argc, char *argv[]) {
         for(int j=0; j<numNodesPerElem; ++j) {
           for(int k=0; k<dim; ++k)
             physVertexesHost(i,j,k) = offset[k]+h[k]/2.0*refVerticesHost(j,k);
-        }
-      }
-      for(size_t side=0; side < boundarySides.size(); side++) {
-        int elem = boundarySides[side].first;
-        int elemSide = boundarySides[side].second;
-        std::cout<< "\n Side " << side << ": \n";
-        for(unsigned sideNode=0; sideNode<hexa.getNodeCount(2,elemSide); sideNode++) {
-          int node = hexa.getNodeMap(2,elemSide,sideNode);
-          std::cout<< "(" << physVertexesHost(elem,node,0) << ", " <<
-              physVertexesHost(elem,node,1) << ", " <<
-              physVertexesHost(elem,node,2)<< ")\n";
         }
       }
       Kokkos::deep_copy(physVertexes, physVertexesHost);

@@ -161,25 +161,21 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   Kokkos::DynRankView<value_type,host_device_type> refPtsSubcell("refPtsSubcell", ndofSubcell, subcellDim);
   auto latticeSize=PointTools::getLatticeSize(subcellTopo, subcellBasis.getDegree(), 1);
 
-/*
   INTREPID2_TEST_FOR_EXCEPTION( latticeSize != ndofSubcell,
       std::logic_error,
       ">>> ERROR (Intrepid::OrientationTools::getCoeffMatrix_HGRAD): " \
       "Lattice size should be equal to the onber of subcell internal DoFs");
-  */
-  if(latticeSize != ndofSubcell)
-    PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree()+2, 1, POINTTYPE_WARPBLEND);
-  else
-    PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree(), 1, POINTTYPE_WARPBLEND);
+  PointTools::getLattice(refPtsSubcell, subcellTopo, subcellBasis.getDegree(), 1, POINTTYPE_WARPBLEND);
 
   // map the points into the parent, cell accounting for orientation
-  auto subcellParam = Intrepid2::RefSubcellParametrization<host_device_type>::get(subcellDim, cellTopo.getKey());
   Kokkos::DynRankView<value_type,host_device_type> refPtsCell("refPtsCell", ndofSubcell, cellDim);
   // refPtsCell = F_s (\eta_o (refPtsSubcell))
   if(cellDim == subcellDim)
     mapToModifiedReference(refPtsCell,refPtsSubcell,subcellBaseKey,subcellOrt);
-  else
+  else {
+    auto subcellParam = Intrepid2::RefSubcellParametrization<host_device_type>::get(subcellDim, cellTopo.getKey());
     mapSubcellCoordsToRefCell(refPtsCell,refPtsSubcell, subcellParam, subcellBaseKey, subcellId, subcellOrt);
+  }
 
   //
   // Bases evaluation on the reference points
@@ -262,7 +258,7 @@ getCoeffMatrix_HGRAD(OutputViewType &output, /// this is device view
   // Print A Matrix
   /*
   {
-    std::cout  << subcellId << "," << subcellOrt << ": |";
+    std::cout  << "|";
     for (ordinal_type i=0;i<ndofSubcell;++i) {
       for (ordinal_type j=0;j<ndofSubcell;++j) {
         std::cout << PhiMat(i,j) << " ";

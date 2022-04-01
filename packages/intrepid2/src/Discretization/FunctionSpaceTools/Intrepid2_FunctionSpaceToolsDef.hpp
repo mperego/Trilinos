@@ -106,40 +106,6 @@ namespace Intrepid2 {
    /**
        \brief Functor for calculation HGRADtransformGRAD, see Intrepid2::FunctionSpaceTools for more
    */
-/*
-    template <typename OutputViewType,
-              typename jacInverseViewType,
-              typename inputViewType,
-              ordinal_type spaceDim>
-    struct F_HGRADtransformGRAD {
-            OutputViewType     _output;
-      const jacInverseViewType  _jacInverse;
-      const inputViewType _input;
-
-      // output CPDD, left CPDD or PDD, right FPD
-      KOKKOS_INLINE_FUNCTION
-      F_HGRADtransformGRAD(OutputViewType     output_,
-                           jacInverseViewType  jacInverse_,
-                           inputViewType input_)
-        : _output(output_), 
-          _jacInverse(jacInverse_), 
-          _input(input_) {}
-      
-      KOKKOS_INLINE_FUNCTION
-      void operator()(const ordinal_type cl,
-                      const ordinal_type bf,
-                      const ordinal_type pt) const {
-              auto y = Kokkos::subview(_output,     cl, bf, pt, Kokkos::ALL());
-        const auto A = Kokkos::subview(_jacInverse, cl,     pt, Kokkos::ALL(), Kokkos::ALL());
-        const auto x = Kokkos::subview(_input,      bf,     pt, Kokkos::ALL());
-        
-        if (spaceDim == 2) {
-          Kernels::Serial::matvec_trans_product_d2( y, A, x );
-        } else {
-          Kernels::Serial::matvec_trans_product_d3( y, A, x );
-        }
-      }
-    }; */
   }
   
   template<typename DeviceType>
@@ -243,8 +209,8 @@ namespace Intrepid2 {
                       const Kokkos::DynRankView<metricTensorDetValueType,metricTensorDetProperties...> metricTensorDet,
                       const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals ) {
     auto work = Kokkos::DynRankView<outputValValueType,  outputValProperties...>("work", outputVals.extent(0), outputVals.extent(1),outputVals.extent(2));
-    ArrayTools<DeviceType>::matvecProductDataField(outputVals, tangents, inputVals, 'T');
-    ArrayTools<DeviceType>::matvecProductDataField(work, metricTensorInv, outputVals, 'T');
+    ArrayTools<DeviceType>::matvecProductDataData(outputVals, tangents, inputVals, 'T');
+    ArrayTools<DeviceType>::matvecProductDataData(work, metricTensorInv, outputVals);
     Kokkos::parallel_for(Kokkos::RangePolicy<typename DeviceType::execution_space>(0,outputVals.extent(0)),
     KOKKOS_LAMBDA (const int &is) {
       for (size_t pt=0; pt < work.extent(1); pt++) {

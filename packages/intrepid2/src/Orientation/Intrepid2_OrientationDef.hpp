@@ -179,7 +179,6 @@ namespace Intrepid2 {
       ort.setEdgeOrientation(nedge, orts);
     }
     const ordinal_type nface = (isSide && dim==2) ? 1 : cellTopo.getFaceCount();
-    //const ordinal_type nface = cellTopo.getFaceCount();
     if (nface > 0) {
       typename elemNodeViewType::non_const_value_type vertsSubCell[4];
       ordinal_type orts[6], nvertSubCell;
@@ -195,37 +194,6 @@ namespace Intrepid2 {
     }
     return ort;
   }
-
-  inline
-  Orientation
-  Orientation::getSideOrientation(const shards::CellTopology parentCellTopo,
-                              const  ordinal_type subcellOrd) {
-    Orientation sideOrt;
-    const ordinal_type numEdges = parentCellTopo.getEdgeCount();
-    const ordinal_type dim = parentCellTopo.getDimension();
-    ordinal_type edgeOrts[12];
-    getEdgeOrientation(edgeOrts, numEdges);
-
-    if(dim==2) {
-      sideOrt._edgeOrt |= (edgeOrts[subcellOrd] & 1);
-    } else if (dim==3) {
-      const ordinal_type numSideEdges = parentCellTopo.getEdgeCount(dim-1,subcellOrd);
-      for(ordinal_type sideEdge = 0; sideEdge < numSideEdges; ++sideEdge) {
-        ordinal_type cellEdge = getEdgeOrdinalOfFace(sideEdge, subcellOrd, parentCellTopo);
-        sideOrt._edgeOrt |= (edgeOrts[cellEdge] & 1) << sideEdge;
-      }
-    }
-
-    if(dim==3) {
-      const ordinal_type numFaces = parentCellTopo.getFaceCount();
-      ordinal_type faceOrts[6];
-      getFaceOrientation(faceOrts, numFaces);
-      sideOrt._faceOrt |= (faceOrts[subcellOrd] & 7);
-    }
-
-    return sideOrt;
-  }
-
 
   inline
   ordinal_type 
@@ -507,7 +475,7 @@ namespace Intrepid2 {
   void
   Orientation::setEdgeOrientation(const ordinal_type numEdge, const ordinal_type edgeOrt[]) {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_ABORT( !( 3 <= numEdge && numEdge <= 12 ), 
+    INTREPID2_TEST_FOR_ABORT( !((numEdge == 1) || (3 <= numEdge && numEdge <= 12 )),
                               ">>> ERROR (Intrepid::Orientation::setEdgeOrientation): " \
                               "Invalid numEdge (3--12)");
 #endif
@@ -520,7 +488,7 @@ namespace Intrepid2 {
   void
   Orientation::getEdgeOrientation(ordinal_type *edgeOrt, const ordinal_type numEdge) const {
 #ifdef HAVE_INTREPID2_DEBUG
-    INTREPID2_TEST_FOR_ABORT( !( 3 <= numEdge && numEdge <= 12 ), 
+    INTREPID2_TEST_FOR_ABORT( !((numEdge == 1) || (3 <= numEdge && numEdge <= 12 )),
                               ">>> ERROR (Intrepid::Orientation::setEdgeOrientation): " \
                               "Invalid numEdge (3--12)");
 #endif
