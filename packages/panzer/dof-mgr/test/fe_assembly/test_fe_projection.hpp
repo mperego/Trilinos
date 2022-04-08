@@ -482,9 +482,10 @@ int feProjection(int argc, char *argv[]) {
     auto orientationTimer =  Teuchos::rcp(new Teuchos::TimeMonitor(*Teuchos::TimeMonitor::getNewTimer("Building Orientations")));
 
     //compute global ids of element vertices
-    DynRankViewGId ConstructWithLabel(elemNodesGID, numOwnedElems, numNodesPerElem);
+    DynRankViewGId elemNodesGID("elemNodesGID", numOwnedElems, numNodesPerElem);
     constexpr int maxNumNodesPerSide = 4;
-    DynRankViewGId ConstructWithLabel(sideNodesGID, numBoundarySides, maxNumNodesPerSide);
+    DynRankViewGId sideNodesGID("sideNodesGID", numBoundarySides, maxNumNodesPerSide);
+    Kokkos::DynRankView<int,DeviceSpaceType> sideOrdinals("sideOrdinals", numBoundarySides);
     {
       auto elemNodesGIDHost = Kokkos::create_mirror_view(elemNodesGID);
       for(int i=0; i<numOwnedElems; ++i) {
@@ -496,11 +497,13 @@ int feProjection(int argc, char *argv[]) {
       Kokkos::deep_copy(elemNodesGID, elemNodesGIDHost);
 
       auto sideNodesGIDHost = Kokkos::create_mirror_view(sideNodesGID);
+      auto sideOrdinalsHost = Kokkos::create_mirror_view(sideOrdinals);
       for(int side=0; side<numBoundarySides; ++side) {
         int elem = boundarySides[side].first;
         const auto GIDs = connManager->getConnectivity(elem);
         int elemSide = boundarySides[side].second;
-        TEUCHOS_ASSERT(elemSide == sideFlag);
+        sideOrdinalsHost(side) = elemSide;
+        //TEUCHOS_ASSERT(elemSide == sideFlag);
         std::cout << elemSide << " " << sideFlag <<std::endl;
         for(size_t sideNode=0; sideNode < cellTopoPtr->getNodeCount(sideDim,elemSide); ++sideNode) {
           int node = cellTopoPtr->getNodeMap(sideDim, elemSide, sideNode);
@@ -508,6 +511,7 @@ int feProjection(int argc, char *argv[]) {
         }
       }
       Kokkos::deep_copy(sideNodesGID, sideNodesGIDHost);
+      Kokkos::deep_copy(sideOrdinals, sideOrdinalsHost);
     }
 
     // compute orientations for cells (one time computation)
@@ -625,13 +629,13 @@ int feProjection(int argc, char *argv[]) {
           int elem = boundarySides[i].first;
           elemOrts(elem).getFaceOrientation(sideOrt, 6);
 
-          int elemSide = boundarySides[i].second;
+          int elemSide = sideOrdinals(i);
           //std::cout << "OOOOrt " << elem << " " << elemSide << " " << sideOrt[elemSide] <<std::endl;
-          for(int j=0; j<numSidePoints; ++j){
-            auto sideEvalPoint = Kokkos::subview(sideEvaluationPoints,i,j,Kokkos::ALL());
+          //for(int j=0; j<numSidePoints; ++j){
+         //   auto sideEvalPoint = Kokkos::subview(sideEvaluationPoints,i,j,Kokkos::ALL());
             //if(j>=ePointsRange(sideDim, 0).first)
             //  std::cout <<"xxx: "<< sideEvalPoint(0) << " " << sideEvalPoint(1) <<std::endl;
-          }
+          //}
           auto basisValuesAtSideEvalPoint = Kokkos::subview(linearBasisValuesAtSideEvalPoint,i,Kokkos::ALL());
           auto faceEPoints = sideProjStruct.getEvalPoints(sideDim,0,pts::EvalPointsType::TARGET);
           auto modSubcellCoords = Kokkos::subview(sideEvaluationPoints, i, ePointsRange(sideDim, 0),Kokkos::ALL());
@@ -721,10 +725,11 @@ int feProjection(int argc, char *argv[]) {
       DynRankView ConstructWithLabel(sideEvaluationPoints3d, numBoundarySides, numSidePoints, dim);
       for(int i=0;i<numBoundarySides;i++) {
         int elem = boundarySides[i].first;
+        int elemSide = boundarySides[i].second;
         ct::mapToReferenceSubcell(Kokkos::subview(sideEvaluationPoints3d,i,Kokkos::ALL(),Kokkos::ALL()),
                              Kokkos::subview(sideEvaluationPoints,i,Kokkos::ALL(),Kokkos::ALL()),
                              sideDim,
-                             sideFlag,
+                             elemSide,
                              *cellTopoPtr);
 
         ct::setJacobian(Kokkos::subview(jacobian,std::make_pair(i,i+1),Kokkos::ALL(),Kokkos::ALL(),Kokkos::ALL()),
@@ -734,7 +739,9 @@ int feProjection(int argc, char *argv[]) {
       ct::getPhysicalFaceNormals(normals,jacobian,sideFlag,*cellTopoPtr);
       auto tangents0 = Kokkos::subview(tangents, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 0);
       auto tangents1 = Kokkos::subview(tangents, Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL(), 1);
-      ct::getPhysicalFaceTangents(tangents0, tangents1,jacobian,sideFlag,*cellTopoPtr);
+      //DynRankView ConstructWithLabel(sideFlagView, numBoundarySides);
+      //Kokkos::deep_copy(sideFlagView,sideFlag);
+      ct::getPhysicalFaceTangents(tangents0, tangents1,jacobian,sideOrdinals,*cellTopoPtr);
       rst::AtA(metricTensor,tangents);
       rst::inverse(metricTensor_inv,metricTensor);
       rst::det(metricTensor_det,metricTensor);

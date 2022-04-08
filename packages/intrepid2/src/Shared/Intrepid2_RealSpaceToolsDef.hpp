@@ -1463,7 +1463,7 @@ det( DeterminantArrayViewType detArray, const MatrixViewType inMats );
       INTREPID2_TEST_FOR_EXCEPTION( inMats.extent(0) != matVecs.extent(matVecs.rank()-1) || 
                                     inMats.extent(1) != inVecs.extent(inVecs.rank()-1), std::invalid_argument,
                                     ">>> ERROR (RealSpaceTools::matvec): Matvec dimensions are not compatible each other.");
-    } else if (inVecs.rank() == 1) {
+    } else if (inVecs.rank() < matVecs.rank()) {
       // multiple matrix, single input and multiple output
       INTREPID2_TEST_FOR_EXCEPTION( inMats.rank() != (matVecs.rank()+1), std::invalid_argument,
                                     ">>> ERROR (RealSpaceTools::matvec): The result vector and matrix array arguments do not have compatible ranks!");
@@ -1473,7 +1473,7 @@ det( DeterminantArrayViewType detArray, const MatrixViewType inMats );
       }
       // matvec compatibility 
       INTREPID2_TEST_FOR_EXCEPTION( inMats.extent(inMats.rank()-2) != matVecs.extent(matVecs.rank()-1) || 
-                                    inMats.extent(inMats.rank()-1) != inVecs.extent(0), std::invalid_argument,
+                                    inMats.extent(inMats.rank()-1) != inVecs.extent(inVecs.rank()-1), std::invalid_argument,
                                     ">>> ERROR (RealSpaceTools::matvec): Matvec dimensions are not compatible each other.");
     } else {
       // multiple matrix, multiple input and multiple output

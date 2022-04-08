@@ -761,6 +761,20 @@ public:
                              const ordinal_type         worksetFaceOrd,
                              const shards::CellTopology parentCell );
 
+
+
+    template<typename faceTanValueType,        class ...faceTanProperties,
+             typename worksetJacobianValueType, class ...worksetJacobianProperties,
+             typename faceOrdValueType, class ...faceOrdProperties>
+    static void
+    getPhysicalFaceTangents(       Kokkos::DynRankView<faceTanValueType,faceTanProperties...> faceTanU,
+                                   Kokkos::DynRankView<faceTanValueType,faceTanProperties...> faceTanV,
+                             const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                             const Kokkos::DynRankView<faceOrdValueType,faceOrdProperties...>  faceOrdView,
+                             const shards::CellTopology parentCell );
+
+
+
     /** \brief  Computes non-normalized normal vectors to physical sides in a side workset
         \f$\{\mathcal{S}_{c,i}\}_{c=0}^{N}\f$.
 
