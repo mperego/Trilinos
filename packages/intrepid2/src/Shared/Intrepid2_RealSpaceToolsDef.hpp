@@ -1422,11 +1422,13 @@ det( DeterminantArrayViewType detArray, const MatrixViewType inMats );
         const ordinal_type kend = inMat.extent(0);
 
         for (ordinal_type i=0;i<iend;++i) {
-          for (ordinal_type j=0;j<jend;++j) {
+          for (ordinal_type j=i;j<jend;++j) {
             outMat(i,j) = 0;
             for (ordinal_type k=0;k<kend;++k)
               outMat(i,j) += inMat(k, i)*inMat(k,j);
           }
+          for (ordinal_type j=0;j<i;++j)
+            outMat(i,j) = outMat(j,i);
         }
       }
     };

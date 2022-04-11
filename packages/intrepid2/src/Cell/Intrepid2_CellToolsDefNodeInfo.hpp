@@ -450,6 +450,75 @@ namespace Intrepid2 {
     RealSpaceTools<DeviceType>::matvec(edgeTangents, worksetJacobians, refEdgeTan);
   }
 
+  template<typename DeviceType>
+  template<typename edgeTangentValueType,     class ...edgeTangentProperties,
+           typename worksetJacobianValueType, class ...worksetJacobianProperties,
+           typename edgeOrdValueType,         class ...edgeOrdProperties>
+  void
+  CellTools<DeviceType>::
+  getPhysicalEdgeTangents(       Kokkos::DynRankView<edgeTangentValueType,edgeTangentProperties...>         edgeTangents,
+                           const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                           const Kokkos::DynRankView<edgeOrdValueType,edgeOrdProperties...>                 edgeOrdView,
+                           const shards::CellTopology parentCell ) {
+#ifdef HAVE_INTREPID2_DEBUG
+    INTREPID2_TEST_FOR_EXCEPTION( parentCell.getDimension() != 3 &&
+                                  parentCell.getDimension() != 2, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): 2D or 3D parent cell required." );
+
+    // (1) edgeTangents is rank-3 (C,P,D) and D=2, or 3 is required
+    INTREPID2_TEST_FOR_EXCEPTION( edgeTangents.rank() != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): edgeTangents requires rank 3." );
+    INTREPID2_TEST_FOR_EXCEPTION( edgeTangents.extent(2) != 2 &&
+                                  edgeTangents.extent(2) != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): edgeTangents dimension(2) must be 2 or 3." );
+
+    INTREPID2_TEST_FOR_EXCEPTION( edgeTangents.extent(0) != edgeOrdView.extent(0), std::invalid_argument,
+                                   ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): edgeOrdView extent 0 should match that of edgeTangents." );
+
+    // (2) worksetJacobians in rank-4 (C,P,D,D) and D=2, or 3 is required
+    INTREPID2_TEST_FOR_EXCEPTION( worksetJacobians.rank() != 4, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): worksetJacobians requires rank 4." );
+    INTREPID2_TEST_FOR_EXCEPTION( worksetJacobians.extent(2) != 2 &&
+                                  worksetJacobians.extent(2) != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): worksetJacobians dimension(2) must be 2 or 3." );
+    INTREPID2_TEST_FOR_EXCEPTION( worksetJacobians.extent(2) != worksetJacobians.extent(3), std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): worksetJacobians dimension(2) and (3) must match each other." );
+
+    // (4) cross-check array dimensions: edgeTangents (C,P,D) vs. worksetJacobians (C,P,D,D)
+    for (auto i=0;i<3;++i) {
+      INTREPID2_TEST_FOR_EXCEPTION( edgeTangents.extent(i) != worksetJacobians.extent(i), std::invalid_argument,
+                                    ">>> ERROR (Intrepid2::CellTools::getPhysicalEdgeTangents): edgeTangents dimension (i) does not match to worksetJacobians dimension(i)." );
+    }
+#endif
+    constexpr bool are_accessible =
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(edgeTangents)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(worksetJacobians)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(edgeOrdView)::memory_space>::accessible;
+    static_assert(are_accessible, "CellTools<DeviceType>::getPhysicalEdgeTangents(..): input/output views' memory spaces are not compatible with DeviceType");
+
+
+    // Storage for constant reference edge tangent: rank-1 (D) arrays
+    const ordinal_type dim = parentCell.getDimension();
+    auto vcprop = Kokkos::common_view_alloc_prop(edgeTangents);
+    using common_value_type = typename decltype(vcprop)::value_type;
+    Kokkos::DynRankView< common_value_type, DeviceType > refEdgeTan ( Kokkos::view_alloc("CellTools::getPhysicalEdgeTangents::refEdgeTan", vcprop), edgeTangents.extent(0), dim);
+
+
+
+    const auto edgeMap = RefSubcellParametrization<DeviceType>::get(1, parentCell.getKey());
+
+    Kokkos::parallel_for(Kokkos::RangePolicy<ExecSpaceType>(0,refEdgeTan.extent(0)),
+        KOKKOS_LAMBDA (const int &ic) {
+      for (ordinal_type d=0; d<dim; d++) {
+        refEdgeTan(ic,d) = edgeMap(edgeOrdView(ic), d, 1);
+      }
+      });
+
+    RealSpaceTools<DeviceType>::matvec(edgeTangents, worksetJacobians, refEdgeTan);
+  }
 
   template<typename DeviceType>
   template<typename faceTanValueType,        class ...faceTanProperties,
@@ -671,6 +740,54 @@ namespace Intrepid2 {
   
 
   template<typename DeviceType>
+  template<typename sideNormalValueType,      class ...sideNormalProperties,
+           typename worksetJacobianValueType, class ...worksetJacobianProperties,
+           typename edgeOrdValueType,         class ...edgeOrdProperties>
+  void
+  CellTools<DeviceType>::
+  getPhysicalSideNormals(       Kokkos::DynRankView<sideNormalValueType,sideNormalProperties...> sideNormals,
+                          const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                          const Kokkos::DynRankView<edgeOrdValueType,edgeOrdProperties...>                 edgeOrdView,
+                          const shards::CellTopology parentCell ) {
+#ifdef HAVE_INTREPID2_DEBUG
+    INTREPID2_TEST_FOR_EXCEPTION( parentCell.getDimension() != 2 &&
+                                  parentCell.getDimension() != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalSideNormals): two or three-dimensional parent cell required");
+#endif
+    constexpr bool are_accessible =
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(sideNormals)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(worksetJacobians)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(edgeOrdView)::memory_space>::accessible;
+    static_assert(are_accessible, "CellTools<DeviceType>::getPhysicalSideNormals(..): input/output views' memory spaces are not compatible with DeviceType");
+
+    const auto dim = parentCell.getDimension();
+
+    if (dim == 2) {
+      // compute edge tangents and rotate it
+      auto vcprop = Kokkos::common_view_alloc_prop(sideNormals);
+      using common_value_type = typename decltype(vcprop)::value_type;
+      Kokkos::DynRankView< common_value_type, DeviceType > edgeTangents ( Kokkos::view_alloc("CellTools::getPhysicalSideNormals::edgeTan", vcprop),
+                                                              sideNormals.extent(0),
+                                                              sideNormals.extent(1),
+                                                              sideNormals.extent(2));
+      getPhysicalEdgeTangents(edgeTangents, worksetJacobians, edgeOrdView, parentCell);
+
+      //Note: this function has several template parameters and the compiler gets confused if using a lambda function
+      using FunctorType = FunctorCellTools::F_edgeNormalsFromTangents<decltype(sideNormals), decltype(edgeTangents)>;
+      const auto loopSize = edgeTangents.extent(0)*edgeTangents.extent(1);
+          Kokkos::RangePolicy<ExecSpaceType,Kokkos::Schedule<Kokkos::Static> > policy(0, loopSize);
+          Kokkos::parallel_for( policy, FunctorType(sideNormals, edgeTangents) );
+
+    } else {
+      getPhysicalFaceNormals(sideNormals, worksetJacobians, edgeOrdView, parentCell);
+    }
+  }
+
+
+  template<typename DeviceType>
   template<typename faceNormalValueType,      class ...faceNormalProperties,
            typename worksetJacobianValueType, class ...worksetJacobianProperties>
   void
@@ -729,6 +846,72 @@ namespace Intrepid2 {
   
     RealSpaceTools<DeviceType>::vecprod(faceNormals, faceTanU, faceTanV);
   }
+
+  template<typename DeviceType>
+  template<typename faceNormalValueType,      class ...faceNormalProperties,
+           typename worksetJacobianValueType, class ...worksetJacobianProperties,
+           typename faceOrdValueType, class ...faceOrdProperties>
+  void
+  CellTools<DeviceType>::
+  getPhysicalFaceNormals(       Kokkos::DynRankView<faceNormalValueType,faceNormalProperties...> faceNormals,
+                          const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                          const Kokkos::DynRankView<faceOrdValueType,faceOrdProperties...>  faceOrdView,
+                          const shards::CellTopology parentCell ) {
+#ifdef HAVE_INTREPID2_DEBUG
+    INTREPID2_TEST_FOR_EXCEPTION( parentCell.getDimension() != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): three-dimensional parent cell required." );
+
+    // (1) faceNormals is rank-3 (C,P,D) and D=3 is required
+    INTREPID2_TEST_FOR_EXCEPTION( faceNormals.rank() != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): faceNormals must have a rank 3." );
+    INTREPID2_TEST_FOR_EXCEPTION( faceNormals.extent(2) != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): faceNormals dimension (2) must be 3." );
+    INTREPID2_TEST_FOR_EXCEPTION( faceNormals.extent(0) != faceOrdView.extent(0), std::invalid_argument,
+                                   ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): faceOrdView extent 0 should match that of faceNormals." );
+
+    // (3) worksetJacobians in rank-4 (C,P,D,D) and D=3 is required
+    INTREPID2_TEST_FOR_EXCEPTION( worksetJacobians.rank() != 4, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): worksetJacobians must have a rank 4." );
+    INTREPID2_TEST_FOR_EXCEPTION( worksetJacobians.extent(2) != 3, std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): worksetJacobians dimension (2) must be 3." );
+    INTREPID2_TEST_FOR_EXCEPTION( worksetJacobians.extent(2) != worksetJacobians.extent(3), std::invalid_argument,
+                                  ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): worksetJacobians dimension (2) must match to dimension (3)." );
+
+    // (4) cross-check array dimensions: faceNormals (C,P,D) vs. worksetJacobians (C,P,D,D)
+    for (auto i=0;i<3;++i) {
+      INTREPID2_TEST_FOR_EXCEPTION( faceNormals.extent(i) != worksetJacobians.extent(i), std::invalid_argument,
+                                    ">>> ERROR (Intrepid2::CellTools::getPhysicalFaceNormals): faceNormals dimension (i) must match to worksetJacobians dimension (i)." );
+    }
+#endif
+    constexpr bool are_accessible =
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(faceNormals)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(worksetJacobians)::memory_space>::accessible &&
+        Kokkos::Impl::MemorySpaceAccess<MemSpaceType,
+        typename decltype(faceOrdView)::memory_space>::accessible;
+    static_assert(are_accessible, "CellTools<DeviceType>::getPhysicalFaceNormals(..): input/output views' memory spaces are not compatible with DeviceType");
+
+
+    // this should be provided from users
+    // Storage for physical face tangents: rank-3 (C,P,D) arrays
+    const auto worksetSize = worksetJacobians.extent(0);
+    const auto facePtCount = worksetJacobians.extent(1);
+    const auto dim = parentCell.getDimension();
+
+    auto vcprop = Kokkos::common_view_alloc_prop(faceNormals);
+    using common_value_type = typename decltype(vcprop)::value_type;
+    Kokkos::DynRankView< common_value_type, DeviceType > faceTanU ( Kokkos::view_alloc("CellTools::getPhysicalFaceNormals::faceTanU", vcprop), worksetSize, facePtCount, dim);
+    Kokkos::DynRankView< common_value_type, DeviceType > faceTanV ( Kokkos::view_alloc("CellTools::getPhysicalFaceNormals::faceTanV", vcprop), worksetSize, facePtCount, dim);
+
+    getPhysicalFaceTangents(faceTanU, faceTanV,
+                            worksetJacobians,
+                            faceOrdView,
+                            parentCell);
+
+    RealSpaceTools<DeviceType>::vecprod(faceNormals, faceTanU, faceTanV);
+  }
+
 }
 
 #endif

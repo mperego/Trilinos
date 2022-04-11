@@ -179,7 +179,7 @@ namespace Intrepid2 {
     {
       const ordinal_type numOrt = 2;
       for (ordinal_type edgeId=0;edgeId<numEdges;++edgeId) {
-        if(cellBasis->getDofCount(1, edgeId) < 2) continue;
+        if(cellBasis->getDofCount(1, edgeId) < 1) continue;
         for (ordinal_type edgeOrt=0;edgeOrt<numOrt;++edgeOrt) {
           auto mat = Kokkos::subview(matData,
               edgeId, edgeOrt,

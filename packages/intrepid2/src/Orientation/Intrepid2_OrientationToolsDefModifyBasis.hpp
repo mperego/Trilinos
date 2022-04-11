@@ -229,10 +229,9 @@ namespace Intrepid2 {
         const ordinal_type ordEdge = (1 < tagToOrdinal.extent(0) ? (static_cast<size_type>(0) < tagToOrdinal.extent(1) ? tagToOrdinal(1, 0, 0) : -1) : -1);
 
         if (ordEdge != -1) {
-          existEdgeDofs = 1;
           const ordinal_type ndofEdge = ordinalToTag(ordEdge, 3);
           const auto mat = Kokkos::subview(matData,
-                                           0, ordEdge,
+                                           0, edgeOrt,
                                            Kokkos::ALL(), Kokkos::ALL());
 
           for (ordinal_type j=0;j<numPoints;++j)

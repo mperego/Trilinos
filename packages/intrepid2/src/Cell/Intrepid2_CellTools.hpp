@@ -713,6 +713,15 @@ public:
                              const ordinal_type         worksetEdgeOrd,
                              const shards::CellTopology parentCell );
 
+    template<typename edgeTangentValueType,     class ...edgeTangentProperties,
+             typename worksetJacobianValueType, class ...worksetJacobianProperties,
+             typename edgeOrdValueType,         class ...edgeOrdProperties>
+    static void
+    getPhysicalEdgeTangents(       Kokkos::DynRankView<edgeTangentValueType,edgeTangentProperties...>         edgeTangents,
+                             const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                             const Kokkos::DynRankView<edgeOrdValueType,edgeOrdProperties...>                 edgeOrdView,
+                             const shards::CellTopology parentCell );
+
     /** \brief  Computes non-normalized tangent vector pairs to physical faces in a face workset
         \f$\{\mathcal{F}_{c,i}\}_{c=0}^{N}\f$; (see \ref sec_cell_topology_subcell_wset for definition of face worksets).
 
@@ -843,6 +852,15 @@ public:
                             const ordinal_type         worksetSideOrd,
                             const shards::CellTopology parentCell );
 
+    template<typename sideNormalValueType,      class ...sideNormalProperties,
+             typename worksetJacobianValueType, class ...worksetJacobianProperties,
+             typename edgeOrdValueType,         class ...edgeOrdProperties>
+    static void
+    getPhysicalSideNormals(       Kokkos::DynRankView<sideNormalValueType,sideNormalProperties...> sideNormals,
+                            const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                            const Kokkos::DynRankView<edgeOrdValueType,edgeOrdProperties...>                 edgeOrdView,
+                            const shards::CellTopology parentCell );
+
     /** \brief  Computes non-normalized normal vectors to physical faces in a face workset
         \f$\{\mathcal{F}_{c,i}\}_{c=0}^{N}\f$; (see \ref sec_cell_topology_subcell_wset for definition of face worksets).
 
@@ -887,6 +905,15 @@ public:
     getPhysicalFaceNormals(       Kokkos::DynRankView<faceNormalValueType,faceNormalProperties...> faceNormals,
                             const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
                             const ordinal_type         worksetFaceOrd,
+                            const shards::CellTopology parentCell );
+
+    template<typename faceNormalValueType,      class ...faceNormalProperties,
+             typename worksetJacobianValueType, class ...worksetJacobianProperties,
+             typename faceOrdValueType, class ...faceOrdProperties>
+    static void
+    getPhysicalFaceNormals(       Kokkos::DynRankView<faceNormalValueType,faceNormalProperties...> faceNormals,
+                            const Kokkos::DynRankView<worksetJacobianValueType,worksetJacobianProperties...> worksetJacobians,
+                            const Kokkos::DynRankView<faceOrdValueType,faceOrdProperties...>  faceOrdView,
                             const shards::CellTopology parentCell );
 
     //============================================================================================//

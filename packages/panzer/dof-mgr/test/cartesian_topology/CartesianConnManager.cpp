@@ -249,14 +249,13 @@ initialize(const Teuchos::MpiComm<int> & comm,GlobalOrdinal nx, GlobalOrdinal ny
     // faces from 0 to 11 are associated to the Hex faces (each of the 6 Hex faces is split in two triangles),
     // faces from 12 to 17, are faces internal to the Hex
     int tetsFacesInHex[6][4] = {
-        {12, 2, 13, 10},
-        {13, 8, 14, 3},
-        {14, 11, 15, 9},
-        {6, 5, 15, 16},
-        {0, 16, 17, 7},
-        {17, 12, 4, 1}
+        {12,  4, 13,  8},
+        {13,  5, 14,  7},
+        {14, 10, 15,  6},
+        { 1, 11, 15, 16},
+        { 0, 16, 17,  2},
+        {17, 12,  9,  3}
     };
-
 
     subElemToBrickElementNodesMap_.resize(numSubElemsPerBrickElement_);
     for (int i=0; i<numSubElemsPerBrickElement_; ++i) {
@@ -276,8 +275,9 @@ initialize(const Teuchos::MpiComm<int> & comm,GlobalOrdinal nx, GlobalOrdinal ny
     subElemToBrickElementEdgesMap_.resize(numSubElemsPerBrickElement_);
     for (int i=0; i<numSubElemsPerBrickElement_; ++i) {
       subElemToBrickElementEdgesMap_[i].resize(6);
-      for (int j=0; j<6; ++j)
+      for (int j=0; j<6; ++j) {
         subElemToBrickElementEdgesMap_[i][j] = tetsEdgesInHex[i][j];
+      }
     }
   } break;
   default:
@@ -597,7 +597,7 @@ CartesianConnManager::buildLocalBoundarySides()
           for (size_t subSide=0; subSide<subElemToBrickElementSidesMap_[subElem].size(); ++subSide) {
             for(int l=0; l<numSubSidesPerBrickSide_[brickSide]; l++) {
               if(subElemToBrickElementSidesMap_[subElem][subSide] == sideOffset[brickSide]+l)
-                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(elem,subSide);
+                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(numSubElemsPerBrickElement_*elem+subElem,subSide);
             }
           }
       }
@@ -613,7 +613,7 @@ CartesianConnManager::buildLocalBoundarySides()
           for (size_t subSide=0; subSide<subElemToBrickElementSidesMap_[subElem].size(); ++subSide) {
             for(int l=0; l<numSubSidesPerBrickSide_[brickSide]; l++) {
               if(subElemToBrickElementSidesMap_[subElem][subSide] == sideOffset[brickSide]+l)
-                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(elem,subSide);
+                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(numSubElemsPerBrickElement_*elem+subElem,subSide);
               }
             }
       }
@@ -629,7 +629,7 @@ CartesianConnManager::buildLocalBoundarySides()
           for (size_t subSide=0; subSide<subElemToBrickElementSidesMap_[subElem].size(); ++subSide) {
             for(int l=0; l<numSubSidesPerBrickSide_[brickSide]; l++) {
               if(subElemToBrickElementSidesMap_[subElem][subSide] == sideOffset[brickSide]+l)
-                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(elem,subSide);
+                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(numSubElemsPerBrickElement_*elem+subElem,subSide);
               }
             }
       }
@@ -645,7 +645,7 @@ CartesianConnManager::buildLocalBoundarySides()
           for (size_t subSide=0; subSide<subElemToBrickElementSidesMap_[subElem].size(); ++subSide) {
             for(int l=0; l<numSubSidesPerBrickSide_[brickSide]; l++) {
               if(subElemToBrickElementSidesMap_[subElem][subSide] == sideOffset[brickSide]+l)
-                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(elem,subSide);
+                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(numSubElemsPerBrickElement_*elem+subElem,subSide);
               }
             }
       }
@@ -661,7 +661,7 @@ CartesianConnManager::buildLocalBoundarySides()
           for (size_t subSide=0; subSide<subElemToBrickElementSidesMap_[subElem].size(); ++subSide) {
             for(int l=0; l<numSubSidesPerBrickSide_[brickSide]; l++) {
               if(subElemToBrickElementSidesMap_[subElem][subSide] == sideOffset[brickSide]+l)
-                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(elem,subSide);
+                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(numSubElemsPerBrickElement_*elem+subElem,subSide);
               }
             }
       }
@@ -677,7 +677,7 @@ CartesianConnManager::buildLocalBoundarySides()
           for (size_t subSide=0; subSide<subElemToBrickElementSidesMap_[subElem].size(); ++subSide) {
             for(int l=0; l<numSubSidesPerBrickSide_[brickSide]; l++) {
               if(subElemToBrickElementSidesMap_[subElem][subSide] == sideOffset[brickSide]+l)
-                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(elem,subSide);
+                boundarySides_[brickSide][side++] = std::pair<LocalOrdinal,LocalOrdinal>(numSubElemsPerBrickElement_*elem+subElem,subSide);
               }
             }
       }
@@ -727,8 +727,7 @@ CartesianConnManager::updateConnectivity_2d(const panzer::FieldPattern & fp,
                                         + (e==1 || e==3) * totalBrickElements_.x;
 
       if((elemTopology_.getKey()==shards::Triangle<3>::key) && (e == 4)) {
-        GlobalOrdinal totalElementEdges = (totalBrickElements_.x+1)*totalBrickElements_.y+totalBrickElements_.x*(totalBrickElements_.y+1);
-        edge = totalNodes_ + totalElementEdges + computeGlobalBrickElementIndex(index);
+        edge = totalNodes_ + totalEdges_ - (totalBrickElements_.x * totalBrickElements_.y) + computeGlobalBrickElementIndex(index);
       }
       conn.push_back(edge);
     }
@@ -752,7 +751,6 @@ CartesianConnManager::updateConnectivity_3d(const panzer::FieldPattern & fp,
 
   Triplet<GlobalOrdinal> index = computeLocalBrickElementGlobalTriplet(localElementId,myBrickElements_,myBrickOffset_);
 
-  //std::cout << "Totals: " << totalNodes_ << " " << totalEdges_ <<  " " << totalFaces_ << " | " ;
   for(int c=0;c<fp.getSubcellCount(subcellDim);c++) {
     std::size_t num = fp.getSubcellIndices(subcellDim,c).size();
     TEUCHOS_ASSERT(num==1 || num==0);
@@ -794,14 +792,15 @@ CartesianConnManager::updateConnectivity_3d(const panzer::FieldPattern & fp,
       if(e== 7) edge += kshift + totalBrickElements_.x;
 
       // vertical edges
-      if(e==8 || e==9 || e==10 || e==11)
+      if(e==8 || e==9 || e==10 || e==11) {
         edge +=  (totalBrickElements_.x+1)*totalBrickElements_.y + totalBrickElements_.x*(totalBrickElements_.y+1)
                 - index.y*totalBrickElements_.x;
 
-      if(e== 8) edge += 0;
-      if(e== 9) edge += 1;
-      if(e==10) edge += totalBrickElements_.x+2;
-      if(e==11) edge += totalBrickElements_.x+1;
+        if(e== 8) edge += 0;
+        if(e== 9) edge += 1;
+        if(e==10) edge += totalBrickElements_.x+2;
+        if(e==11) edge += totalBrickElements_.x+1;
+      }
 
       if((elemTopology_.getKey()==shards::Tetrahedron<4>::key) && (e >= 12)) {
         GlobalOrdinal totalElementEdges = (totalBrickElements_.x+1)*totalBrickElements_.y*(totalBrickElements_.z+1)+
@@ -814,18 +813,19 @@ CartesianConnManager::updateConnectivity_3d(const panzer::FieldPattern & fp,
         edge =  totalNodes_ + basePoint;
 
         // vertical faces
-        if(e==12 || e==13 || e==14 || e==15)
+        if(e==12 || e==13 || e==14 || e==15){
           edge += totalBrickElements_.x*totalBrickElements_.y + (index.y+1)*(totalBrickElements_.x+1);
 
-        if(e==12) edge += -totalBrickElements_.x-1;
-        if(e==13) edge += 0;
-        if(e==14) edge += totalBrickElements_.x;
-        if(e==15) edge += -1;
+          if(e==12) edge += -totalBrickElements_.x-1;
+          if(e==13) edge += 0;
+          if(e==14) edge += totalBrickElements_.x;
+          if(e==15) edge += -1;
+        }
         if(e==16) edge += 0;
         if(e==17) edge += faceKshift; // move it up a level
 
         if(e == 18)
-          edge =  totalNodes_ + 2*totalElementEdges + computeGlobalBrickElementIndex(index);
+          edge = totalNodes_ +  totalEdges_ - totalBrickElements_.x * totalBrickElements_.y * totalBrickElements_.z + computeGlobalBrickElementIndex(index);
       }
       conn.push_back(edge);
     }
@@ -835,42 +835,49 @@ CartesianConnManager::updateConnectivity_3d(const panzer::FieldPattern & fp,
                              +(totalBrickElements_.x+1)*totalBrickElements_.y
                              +totalBrickElements_.x*(totalBrickElements_.y+1);
       GlobalOrdinal basePoint = index.x+index.y*totalBrickElements_.x+index.z*kshift;
-      GlobalOrdinal face = totalNodes_+totalEdges_+basePoint;
 
-      // vertical faces
-      if(f==0 || f==1 || f==2 || f==3)
-        face += totalBrickElements_.x*totalBrickElements_.y + (index.y+1)*(totalBrickElements_.x+1);
+      GlobalOrdinal face = totalNodes_+totalEdges_;
 
-      if(f==0) face += -totalBrickElements_.x-1;
-      if(f==1) face += 0;
-      if(f==2) face += totalBrickElements_.x;
-      if(f==3) face += -1;
-      if(f==4) face += 0;
-      if(f==5) face += kshift; // move it up a level
-
-      if((elemTopology_.getKey()==shards::Tetrahedron<4>::key) && (f >= 6)) {
-
-        GlobalOrdinal totalElementFaces = totalBrickElements_.x*totalBrickElements_.y*(totalBrickElements_.z+1)
-            + totalBrickElements_.x*(totalBrickElements_.y+1)*totalBrickElements_.z
-            + (totalBrickElements_.x+1)*totalBrickElements_.y*totalBrickElements_.z;
-
-        face = totalNodes_+totalEdges_+totalElementFaces+basePoint;
+      if(elemTopology_.getKey()==shards::Hexahedron<8>::key) {
+        face += basePoint;
 
         // vertical faces
-        if(f==6 || f==7 || f==8 || f==9)
+        if(f==0 || f==1 || f==2 || f==3) {
           face += totalBrickElements_.x*totalBrickElements_.y + (index.y+1)*(totalBrickElements_.x+1);
 
-        if(f==6) face += -totalBrickElements_.x-1;
-        if(f==7) face += 0;
-        if(f==8) face += totalBrickElements_.x;
-        if(f==9) face += -1;
-        if(f==10) face += 0;
-        if(f==11) face += kshift; // move it up a level
+          if(f==0) face += -totalBrickElements_.x-1;
+          if(f==1) face += 0;
+          if(f==2) face += totalBrickElements_.x;
+          if(f==3) face += -1;
+        }
+        if(f==4) face += 0;
+        if(f==5) face += kshift; // move it up a level
+      }
+
+      if((elemTopology_.getKey()==shards::Tetrahedron<4>::key)) {
+        face += 2*basePoint;
+
+        // vertical faces
+        if((f>=0) &&  (f<8)) {
+          face += 2*(totalBrickElements_.x*totalBrickElements_.y + (index.y+1)*(totalBrickElements_.x+1));
+
+          if(f==0) face += -2*(totalBrickElements_.x+1);
+          if(f==1) face += -2*(totalBrickElements_.x+1)+1;
+          if(f==2) face += 0;
+          if(f==3) face += 1;
+          if(f==4) face += 2*(totalBrickElements_.x);
+          if(f==5) face += 2*(totalBrickElements_.x)+1;
+          if(f==6) face += -2;
+          if(f==7) face += -1;
+        }
+        if(f==8) face += 0;
+        if(f==9) face += 1;
+        if(f==10) face += 2*kshift; // move it up a level
+        if(f==11) face += 2*kshift + 1; // move it up a level
 
         if( f >= 12) {
-          face = totalNodes_+totalEdges_+2*totalElementFaces;
+          face = totalNodes_+totalEdges_+totalFaces_ - 6*(totalBrickElements_.x * totalBrickElements_.y * totalBrickElements_.z);
           face += 6*computeGlobalBrickElementIndex(index)+(f-12);
-
         }
       }
       conn.push_back(face);

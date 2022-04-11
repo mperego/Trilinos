@@ -172,16 +172,22 @@ namespace Intrepid2 {
 
     */
     template<typename outputValueType, class ...outputProperties,
-             typename inputValueType,     class ...inputProperties>
+             typename inputValueType,  class ...inputProperties>
     static void 
     HGRADtransformVALUE(       Kokkos::DynRankView<outputValueType,outputProperties...> output,
                          const Kokkos::DynRankView<inputValueType, inputProperties...>  input );
 
     template<typename outputValueType, class ...outputProperties,
-             typename inputValueType,     class ...inputProperties>
+             typename inputValueType,  class ...inputProperties>
     static void
-    HGRADtransformInverseVALUE(       Kokkos::DynRankView<outputValueType,outputProperties...> output,
-                         const Kokkos::DynRankView<inputValueType, inputProperties...>  input );
+    mapHGradDataFromPhysToRef(       Kokkos::DynRankView<outputValueType,outputProperties...> output,
+                               const Kokkos::DynRankView<inputValueType, inputProperties...>  input );
+
+    template<typename outputValueType, class ...outputProperties,
+             typename inputValueType,  class ...inputProperties>
+    static void
+    mapHGradDataFromPhysSideToRefSide(       Kokkos::DynRankView<outputValueType,outputProperties...> output,
+                                       const Kokkos::DynRankView<inputValueType, inputProperties...>  input );
 
 
     /** \brief Transformation of a gradient field in the H-grad space, defined at points on a
@@ -232,15 +238,6 @@ namespace Intrepid2 {
     HGRADtransformGRAD(       Kokkos::DynRankView<outputValValueType,      outputValProperties...>       outputVals,
                         const Kokkos::DynRankView<jacobianInverseValueType,jacobianInverseProperties...> jacobianInverse,
                         const Kokkos::DynRankView<inputValValueType,       inputValProperties...>        inputVals );
-
-    template<typename outputValValueType,  class ...outputValProperties,
-             typename jacobianValueType,   class ...jacobianProperties,
-             typename inputValValueType,   class ...inputValProperties>
-    static void
-    HGRADtransformInverseGRAD(       Kokkos::DynRankView<outputValValueType,      outputValProperties...>       outputVals,
-                               const Kokkos::DynRankView<jacobianValueType,       jacobianProperties...>        jacobian,
-                               const Kokkos::DynRankView<inputValValueType,       inputValProperties...>        inputVals );
-
 
     /** \brief Transformation of a (vector) value field in the H-curl space, defined at points on a
         reference cell, stored in the user-provided container <var><b>inputVals</b></var>
@@ -294,9 +291,9 @@ namespace Intrepid2 {
              typename jacobianValueType,        class ...jacobianProperties,
              typename inputValValueType,        class ...inputValProperties>
     static void
-    HCURLtransformInverseVALUE(       Kokkos::DynRankView<outputValValueType, outputValProperties...>       outputVals,
-                                const Kokkos::DynRankView<jacobianValueType,  jacobianProperties...>        jacobian,
-                                const Kokkos::DynRankView<inputValValueType,  inputValProperties...>        inputVals );
+    mapHCurlDataFromPhysToRef(       Kokkos::DynRankView<outputValValueType, outputValProperties...>       outputVals,
+                               const Kokkos::DynRankView<jacobianValueType,  jacobianProperties...>        jacobian,
+                               const Kokkos::DynRankView<inputValValueType,  inputValProperties...>        inputVals );
     
 
     template<typename outputValValueType,   class ...outputValProperties,
@@ -305,18 +302,21 @@ namespace Intrepid2 {
              typename metricTensorDetValueType, class ...metricTensorDetProperties,
              typename inputValValueType,    class ...inputValProperties>
     static void
-    mapHCURLDataFromPhysSideToRefSide(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
-                        const Kokkos::DynRankView<tangentsValueType,   tangentsProperties...>    tangents,
-                        const Kokkos::DynRankView<metricTensorInvValueType,metricTensorInvProperties...> metricTensorInv,
-                        const Kokkos::DynRankView<metricTensorDetValueType,metricTensorDetProperties...> metricTensorDet,
-                        const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
+    mapHCurlDataCrossNormalFromPhysSideToRefSide(
+              Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
+        const Kokkos::DynRankView<tangentsValueType,   tangentsProperties...>    tangents,
+        const Kokkos::DynRankView<metricTensorInvValueType,metricTensorInvProperties...> metricTensorInv,
+        const Kokkos::DynRankView<metricTensorDetValueType,metricTensorDetProperties...> metricTensorDet,
+        const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
 
-    template<typename outputViewType, typename jacobianViewType, typename inputValViewType>
-    void
-    serialHCURLtransformInverseVALUE(       outputViewType   outputVals,
-                                      const jacobianViewType jacobian,
-                                      const inputValViewType   inputVals );
-
+    template<typename outputValValueType,   class ...outputValProperties,
+               typename jacobianDetValueType, class ...jacobianDetProperties,
+               typename inputValValueType,    class ...inputValProperties>
+    static void
+    mapHCurlDataCrossNormalFromPhysSideToRefSide(
+              Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
+        const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> signedMeasure,
+        const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
 
 
     /** \brief Transformation of a 3D curl field in the H-curl space, defined at points on a
@@ -372,19 +372,6 @@ namespace Intrepid2 {
                         const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
                         const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
 
-    template<typename outputValValueType,      class ...outputValProperties,
-             typename jacobianInverseValueType,    class ...jacobianInverseProperties,
-             typename jacobianDetValueType, class ...jacobianDetProperties,
-             typename inputValValueType,       class ...inputValProperties>
-    static void
-    HCURLtransformInverseCURL(       Kokkos::DynRankView<outputValValueType, outputValProperties...>             outputVals,
-                               const Kokkos::DynRankView<jacobianInverseValueType, jacobianInverseProperties...> jacobianInv,
-                               const Kokkos::DynRankView<jacobianDetValueType, jacobianDetProperties...>         jacobianDet,
-                               const Kokkos::DynRankView<inputValValueType, inputValProperties...>               inputVals );
-
-
-
-
     /** \brief Transformation of a 2D curl field in the H-curl space, defined at points on a
         reference cell, stored in the user-provided container <var><b>inputVals</b></var>
         and indexed by (F,P,D), into the output container <var><b>outputVals</b></var>,
@@ -434,15 +421,6 @@ namespace Intrepid2 {
     HCURLtransformCURL(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
                         const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
                         const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
-    template<typename outputValValueType,      class ...outputValProperties,
-             typename jacobianDetValueType,    class ...jacobianDetProperties,
-             typename inputValValueType,       class ...inputValProperties>
-    static void
-    HCURLtransformInverseCURL(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
-                               const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
-                               const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
 
     /** \brief Transformation of a 2D curl field in the H-grad space, defined at points on a
         reference cell, stored in the user-provided container <var><b>inputVals</b></var>
@@ -496,16 +474,6 @@ namespace Intrepid2 {
                         const Kokkos::DynRankView<jacobianValueType,   jacobianProperties...>    jacobian,
                         const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
                         const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
-    template<typename outputValValueType,        class ...outputValProperties,
-             typename jacobianInverseValueType,  class ...jacobianInverseProperties,
-             typename jacobianDetValueType,      class ...jacobianDetProperties,
-             typename inputValValueType,         class ...inputValProperties>
-    static void
-    HGRADtransformInverseCURL(       Kokkos::DynRankView<outputValValueType,        outputValProperties...>       outputVals,
-                               const Kokkos::DynRankView<jacobianInverseValueType,  jacobianInverseProperties...> jacobianInv,
-                               const Kokkos::DynRankView<jacobianDetValueType,      jacobianDetProperties...>     jacobianDet,
-                               const Kokkos::DynRankView<inputValValueType,         inputValProperties...>        inputVals );
 
 
     /** \brief Transformation of a (vector) value field in the H-div space, defined at points on a
@@ -562,15 +530,26 @@ namespace Intrepid2 {
                         const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
                         const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
 
+
     template<typename outputValValueType,      class ...outputValProperties,
              typename jacobianInverseValueType,       class ...jacobianInverseProperties,
              typename jacobianDetValueType,    class ...jacobianDetProperties,
              typename inputValValueType,       class ...inputValProperties>
     static void
-    HDIVtransformInverseVALUE(       Kokkos::DynRankView<outputValValueType,       outputValProperties...>       outputVals,
-                               const Kokkos::DynRankView<jacobianInverseValueType, jacobianInverseProperties...> jacobianInv,
-                               const Kokkos::DynRankView<jacobianDetValueType,     jacobianDetProperties...>     jacobianDet,
-                               const Kokkos::DynRankView<inputValValueType,        inputValProperties...>        inputVals );
+    mapHDivDataFromPhysToRef(       Kokkos::DynRankView<outputValValueType,       outputValProperties...>       outputVals,
+                              const Kokkos::DynRankView<jacobianInverseValueType, jacobianInverseProperties...> jacobianInv,
+                              const Kokkos::DynRankView<jacobianDetValueType,     jacobianDetProperties...>     jacobianDet,
+                              const Kokkos::DynRankView<inputValValueType,        inputValProperties...>        inputVals );
+
+
+    template<typename outputValValueType,   class ...outputValProperties,
+               typename jacobianDetValueType, class ...jacobianDetProperties,
+               typename inputValValueType,    class ...inputValProperties>
+    static void
+    mapHDivDataDotNormalFromPhysSideToRefSide(
+              Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
+        const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> signedMeasure,
+        const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
 
 
     /** \brief Transformation of a divergence field in the H-div space, defined at points on a
@@ -621,15 +600,6 @@ namespace Intrepid2 {
     HDIVtransformDIV(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
                       const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
                       const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
-    template<typename outputValValueType,      class ...outputValProperties,
-             typename jacobianDetValueType,    class ...jacobianDetProperties,
-             typename inputValValueType,       class ...inputValProperties>
-    static void
-    HDIVtransformInverseDIV(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
-                             const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
-                             const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
 
     /** \brief Transformation of a (scalar) value field in the H-vol space, defined at points on a
         reference cell, stored in the user-provided container <var><b>inputVals</b></var>
@@ -683,18 +653,9 @@ namespace Intrepid2 {
              typename jacobianDetValueType,    class ...jacobianDetProperties,
              typename inputValValueType,       class ...inputValProperties>
     static void
-    HVOLtransformInverseVALUE(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
-                               const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
-                               const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
-    template<typename outputValValueType,   class ...outputValProperties,
-               typename jacobianDetValueType, class ...jacobianDetProperties,
-               typename inputValValueType,    class ...inputValProperties>
-    static void
-    mapHVOLdataFromPhysToRefSide(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
-                          const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> signedMeasure,
-                          const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
-
+    mapHVolDataFromPhysToRef(       Kokkos::DynRankView<outputValValueType,  outputValProperties...>   outputVals,
+                              const Kokkos::DynRankView<jacobianDetValueType,jacobianDetProperties...> jacobianDet,
+                              const Kokkos::DynRankView<inputValValueType,   inputValProperties...>    inputVals );
 
     /** \brief   Contracts \a <b>leftValues</b> and \a <b>rightValues</b> arrays on the
         point and possibly space dimensions and stores the result in \a <b>outputValues</b>;
