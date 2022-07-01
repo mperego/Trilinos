@@ -559,7 +559,18 @@ Piro::PerformROLAnalysis(
       string blockName = "Block "+std::to_string(i);
       Teuchos::ParameterList pl = dHess.sublist(blockName);
       std::string solverType = pl.get<string>("Linear Solver Type");
-      diag[i] = Teko::buildInverse(*Teko::invFactoryFromParamList(pl, solverType), Teko::getBlock(i, i, bH));
+      bool useCustomSolve = false;
+      if(pl.isParameter("Use Custom Solve")) {
+        useCustomSolve = pl.get<bool>("Use Custom Solve");
+        pl.remove("Use Custom Solve"); //parameter not valid for solvers
+      }
+      if(useCustomSolve) {
+          auto linOp = Teuchos::rcp_dynamic_cast<Thyra::LinearOpWithSolveBase<double>>(
+          Teuchos::rcp_const_cast<Thyra::LinearOpBase<double>>(Teko::getBlock(i, i, bH)));
+          diag[i] = Thyra::nonconstInverse(linOp);
+      }
+      else
+        diag[i] = Teko::buildInverse(*Teko::invFactoryFromParamList(pl, solverType), Teko::getBlock(i, i, bH));
     }
 
     H = Teko::toLinearOp(bH);
