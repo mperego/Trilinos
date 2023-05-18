@@ -58,7 +58,7 @@
     {
     public:
 
-      /// integrand tells what fields Intrepid should compute, etc.
+      /// integrand tells what fields Intrepid2 should compute, etc.
       /// Note: this function is intended to be used to wrap a Function using CompositeFunction and thus its domain and codomain
       /// are the same as the wrapped function's codomain
       LN_NormOp(Function& integrand) : Function("LN_NormOp",integrand.getCodomainDimensions(), integrand.getCodomainDimensions()) {}
@@ -99,7 +99,7 @@
       {
         //VERIFY_OP(coords.size(), ==, output_values.size(), "MaxOfNodeValues::operator() bad sizes");
         if (maxVal.size()==0) maxVal.resize(m_integrand.getCodomainDimensions()[0]);
-        MDArray out(maxVal.size());
+        MDArray out("out",maxVal.size());
         m_integrand(coords, out);
 
         for (unsigned i = 0; i < maxVal.size(); i++)

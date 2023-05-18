@@ -28,8 +28,8 @@ namespace percept {
 
   static bool checkNAN(MDArray& c)
   {
-    Teuchos::ArrayRCP<double> dd = c.getData();
-    for (unsigned ii=0; ii < dd.size(); ++ii)
+    double* dd = c.data();
+    for (unsigned ii=0; ii < c.size(); ++ii)
       {
         if (dd[ii] != dd[ii])
           return true;
@@ -1344,7 +1344,7 @@ namespace percept {
   void  FitGregoryPatches::
   fitCubicWithTangents(MDArray& c, const MDArray& pi, const MDArray& pj, const Point& ti, const Point& tj)
   {
-    double len = Math::distance_3d(pi.getData().get(), pj.getData().get());
+    double len = Math::distance_3d(pi.data(), pj.data());
 
     VERIFY_OP_ON(Math::norm_3d(&ti[0]), > , 1.e-8, "bad tangent");
     VERIFY_OP_ON(Math::norm_3d(&tj[0]), > , 1.e-8, "bad tangent j");
@@ -1402,18 +1402,18 @@ namespace percept {
               {
                 std::cout << "kn= " << kn << " face= " << m_eMesh.print_entity_compact(face) << std::endl;
               }
-            Teuchos::Array<int> dim(1, 3);
+            int dim = 3;
             double *normals_data_0 = stk::mesh::field_data( *m_eMesh.m_node_normals , node );
             double *normals_data_p0 = stk::mesh::field_data( *m_eMesh.m_node_normals , nodep );
-            MDArray n_0 (dim, normals_data_0);
-            MDArray np_0 (dim, normals_data_p0);
+            MDArray n_0 (normals_data_0, 1, dim);
+            MDArray np_0 (normals_data_p0, 1, dim);
 
             // maybe modified below
             MDArray n(n_0);
             MDArray np(np_0);
-            MDArray c (dim, static_cast<double*>(stk::mesh::field_data( *m_eMesh.get_coordinates_field() , node )));
-            MDArray cp (dim, static_cast<double*>(stk::mesh::field_data( *m_eMesh.get_coordinates_field() , nodep )));
-            MDArray cf(4,3);
+            MDArray c (static_cast<double*>(stk::mesh::field_data( *m_eMesh.get_coordinates_field() , node )), 1, dim);
+            MDArray cp (static_cast<double*>(stk::mesh::field_data( *m_eMesh.get_coordinates_field() , nodep )), 1, dim);
+            MDArray cf("cf",4,3);
 
             // if (not a seam, but one of my nodes on the edge is on a seam, use face normal/special average using only the faces across my edge)
             // prep here for extrapolation...
@@ -1428,7 +1428,7 @@ namespace percept {
                   {
                     VERIFY_OP_ON(edge.first, ==, nodep, "bad nodep");
                     VERIFY_OP_ON(edge.second, ==, node, "bad node");
-                    MDArray cfr(4,3);
+                    MDArray cfr("cfr",4,3);
                     fitCubicWithTangents(cfr, cp, c, tangents[0], tangents[1]);
                     for (unsigned icp = 0; icp < 4; ++icp)
                       {
@@ -1442,7 +1442,10 @@ namespace percept {
                     fitCubicWithTangents(cf, c, cp, tangents[0], tangents[1]);
                   }
                 if (checkNAN(cf) || debug)
-                  std::cout << "cf=\n " << cf << "\ntangents= "
+                  std::cout << "cf=\n " << "[ [" << cf(0,0) << "," << cf(0,1) << "," << cf(0,2)  << "] ["  <<
+                                                    cf(1,0) << "," << cf(1,1) << "," << cf(1,2)  << "] ["  << 
+                                                    cf(2,0) << "," << cf(2,1) << "," << cf(2,2)  << "] ["  <<
+                                                    cf(3,0) << "," << cf(3,1) << "," << cf(3,2)  << "] ]"  << "\ntangents= "
                             << Math::print_3d(&tangents[0][0]) << " "
                             << Math::print_3d(&tangents[1][0]) << std::endl;
               }
@@ -1482,26 +1485,33 @@ namespace percept {
 
                     if (orient0 >= 0)
                       {
-                        Math::copy_3d(n.getData().get(), normals0[orient0].data());
-                        VERIFY_OP_ON(Math::norm_3d(n.getData().get()), >, 1.e-8, "bad norm");
+                        Math::copy_3d(n.data(), normals0[orient0].data());
+                        VERIFY_OP_ON(Math::norm_3d(n.data()), >, 1.e-8, "bad norm");
                       }
                     if (orient1 >= 0)
                       {
-                        Math::copy_3d(np.getData().get(), normals1[orient1].data());
-                        VERIFY_OP_ON(Math::norm_3d(np.getData().get()), >, 1.e-8, "bad normp");
+                        Math::copy_3d(np.data(), normals1[orient1].data());
+                        VERIFY_OP_ON(Math::norm_3d(np.data()), >, 1.e-8, "bad normp");
                       }
 
                   }
                 if (m_debug) std::cout << "P[" << m_eMesh.get_rank() << "] node= " << m_eMesh.id(node)
-                                       << " norm= " << Math::norm_3d(n.getData().get())
-                                       << " normp= " << Math::norm_3d(np.getData().get()) << std::endl;
-                VERIFY_OP_ON(Math::norm_3d(n.getData().get()), > , 1.e-8, "bad norm");
-                VERIFY_OP_ON(Math::norm_3d(np.getData().get()), > , 1.e-8, "bad normp");
+                                       << " norm= " << Math::norm_3d(n.data())
+                                       << " normp= " << Math::norm_3d(np.data()) << std::endl;
+                VERIFY_OP_ON(Math::norm_3d(n.data()), > , 1.e-8, "bad norm");
+                VERIFY_OP_ON(Math::norm_3d(np.data()), > , 1.e-8, "bad normp");
 
                 GregoryPatch::fitCubic(cf, c, cp, n, np);
                 if (checkNAN(cf))
                   {
-                    std::cout << "cf= \n" << cf << " n=\n" << n << " np=\n" << np << std::endl;
+                    std::cout << "cf= \n" << "[ [" << cf(0,0) << "," << cf(0,1) << "," << cf(0,2)  << "] ["  <<
+                                                    cf(1,0) << "," << cf(1,1) << "," << cf(1,2)  << "] ["  << 
+                                                    cf(2,0) << "," << cf(2,1) << "," << cf(2,2)  << "] ["  <<
+                                                    cf(3,0) << "," << cf(3,1) << "," << cf(3,2)  << "] ]\n" << 
+                                                    "n=\n" << 
+                                                    "[" << n(0,0) << "," << n(0,1) << "," << n(0,2)  << "]\n" << 
+                                                    "np=\n" << 
+                                                    "[" << np(0,0) << "," << np(0,1) << "," << np(0,2)  << "]" << std::endl;
                   }
 
                 if (debug)
@@ -1517,8 +1527,11 @@ namespace percept {
                     if (Math::distance_3d(c0,c1)< 1.e-8)
                       {
                         std::cout << "P[" << m_eMesh.get_rank() << "] face= " << m_eMesh.id(face) << " kn= " << kn
-                                  << " node= " << m_eMesh.id(node) << " nodep= " << m_eMesh.id(nodep)
-                                  << "\nn=\n" << n << "\nnp=\n" << np << "\nc=\n" << c << "\ncp=\n" << cp << std::endl;
+                                  << " node= " << m_eMesh.id(node) << " nodep= " << m_eMesh.id(nodep) << "\nn=\n" 
+                                  << "[" << n(0,0) << "," << n(0,1) << "," << n(0,2)  << "]\nnp=\n" 
+                                  << "[" << np(0,0) << "," << np(0,1) << "," << np(0,2)  << "]\nc=\n"
+                                  << "[" << c(0,0) << "," << c(0,1) << "," << c(0,2)  << "]\ncp=\n" 
+                                  << "[" << cp(0,0) << "," << cp(0,1) << "," << cp(0,2)  << "]" << std::endl;
                       }
                     VERIFY_OP_ON(Math::distance_3d(c0,c1), >, 1.e-8, "bad cf");
                     VERIFY_OP_ON(Math::distance_3d(c2,c3), >, 1.e-8, "bad cf2");
@@ -1527,7 +1540,7 @@ namespace percept {
               }
             if (isTri)
               {
-                MDArray qcf(5,3);
+                MDArray qcf("qcf",5,3);
                 GregoryPatch::degree_elevate(cf, qcf);
                 for (unsigned ip=0; ip < 5; ++ip)
                   {
@@ -1734,12 +1747,25 @@ namespace percept {
                   std::cout << "P[" << m_eMesh.get_rank() << " FGP:: doing neigh ribbons face= " << m_eMesh.identifier(face) << " neigh= " << m_eMesh.identifier(neigh) << std::endl;
                 }
                 edge_visited[edge_0] = 1;
-                MDArray p(4,3), q(4,3), r(4,3), qh(5,3), qcheck(4,3);
+                MDArray p("p",4,3), q("q",4,3), r("r",4,3), qh("qh",5,3), qcheck("qcheck",4,3);
                 extractRibbon(face, edge_0, reverseAll, p, q);
                 extractRibbon(neigh, edge_1, !reverseAll, r, qcheck);
                 if (checkNAN(p) || checkNAN(q) || checkNAN(r))
                   {
-                    std::cout << "p=\n" << p << " q=\n" << q << " r=\n" << r << std::endl;
+                    std::cout << "p=\n" << 
+                        "[ [" <<  p(0,0) << "," << p(0,1) << "," << p(0,2)  << "] ["  <<
+                                  p(1,0) << "," << p(1,1) << "," << p(1,2)  << "] ["  << 
+                                  p(2,0) << "," << p(2,1) << "," << p(2,2)  << "] ["  <<
+                                  p(3,0) << "," << p(3,1) << "," << p(3,2)  << "] ]\nq=\n" <<
+                        "[ [" <<  q(0,0) << "," << q(0,1) << "," << q(0,2)  << "] ["  <<
+                                  q(1,0) << "," << q(1,1) << "," << q(1,2)  << "] ["  << 
+                                  q(2,0) << "," << q(2,1) << "," << q(2,2)  << "] ["  <<
+                                  q(3,0) << "," << q(3,1) << "," << q(3,2)  << "] ]\nr=\n" << 
+                        "[ [" <<  r(0,0) << "," << r(0,1) << "," << r(0,2)  << "] ["  <<
+                                  r(1,0) << "," << r(1,1) << "," << r(1,2)  << "] ["  << 
+                                  r(2,0) << "," << r(2,1) << "," << r(2,2)  << "] ["  <<
+                                  r(3,0) << "," << r(3,1) << "," << r(3,2)  << "] ]" << 
+                        printContainer(r) <<std::endl;
                     VERIFY_MSG("p bad");
                   }
                 GregoryPatch::fitRibbon(p, q, r, qh, isTri, neighIsTri);
@@ -1754,7 +1780,7 @@ namespace percept {
             if (!edge_visited[edge] || edge_is_seam[edge])
               {
                 if (debug) std::cout << "P[" << m_eMesh.get_rank() << " FGP:: doing non-neigh ribbons face= " << m_eMesh.identifier(face) << " edge= " << edge << std::endl;
-                MDArray p(4,3), q(4,3), qh(5,3);
+                MDArray p("p",4,3), q("q",4,3), qh("qh",5,3);
                 extractRibbon(face, edge, reverseAll, p, q);
                 MDArray pex = p;
                 GregoryPatch::fitRibbonNoNeighbor(p, q, qh, isTri);
