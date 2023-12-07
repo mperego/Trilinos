@@ -31,6 +31,8 @@ namespace Piro {
      std::stringstream ss;
   };
 
+  Teuchos::RCP<Thyra::ProductVectorBase<double> > createProductVector(const Teuchos::RCP<Thyra::VectorBase<double> >& vec);
+
   //! \name Top-level Thyra analysis driver
   //@{
   //! \brief Performs analysis of a solved model.
@@ -41,7 +43,11 @@ namespace Piro {
      Thyra::ModelEvaluatorDefaultBase<double>& piroModel,
      Teuchos::ParameterList& analysisParams,
      Teuchos::RCP< Thyra::VectorBase<double> >& result,
-     Teuchos::RCP< ROL_ObserverBase<double> > observer = Teuchos::null
+     Teuchos::RCP< ROL_ObserverBase<double> > observer = Teuchos::null,
+     const Teuchos::RCP< Thyra::VectorBase<double> > x_opt = Teuchos::null,
+     const Teuchos::RCP< Thyra::VectorBase<double> > p_opt = Teuchos::null,
+     const std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >& x_diff_at_samples = std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >(),
+     const std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >& p_samples = std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >()
      );
   //@}
 
@@ -63,6 +69,20 @@ namespace Piro {
      Teuchos::ParameterList& rolParams,
      Teuchos::RCP< Thyra::VectorBase<double> >& p,
      Teuchos::RCP< ROL_ObserverBase<double> > observer = Teuchos::null
+     );
+
+  //! \brief Performs analysis of a transient solved model using ROL.
+  //! \details Requires that the ROL package is available.
+  //! \ingroup Piro_Thyra_analysis_driver_grp
+  int PerformHDSAAnalysis(
+     Thyra::ModelEvaluatorDefaultBase<double>& piroModel,
+     Teuchos::ParameterList& hdsaParams,
+     Teuchos::RCP< Thyra::VectorBase<double> >& p,
+     Teuchos::RCP< ROL_ObserverBase<double> > observer = Teuchos::null,
+     const Teuchos::RCP< Thyra::VectorBase<double> > x_opt = Teuchos::null,
+     const Teuchos::RCP< Thyra::VectorBase<double> > p_opt = Teuchos::null,
+     const std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >& x_diff_at_samples = std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >(),
+     const std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >& p_samples = std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >()
      );
 
   //! \brief Performs analysis of a solved model using ROL.

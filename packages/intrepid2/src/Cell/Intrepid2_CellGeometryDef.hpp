@@ -313,15 +313,27 @@ namespace Intrepid2
         using ExecutionSpace = typename DeviceType::execution_space;
         auto policy = Kokkos::MDRangePolicy<ExecutionSpace,Kokkos::Rank<3>>({startCell,0,0},{numCellsWorkset,spaceDim,spaceDim});
         
-        Kokkos::parallel_for("compute first-order simplex Jacobians", policy,
-        KOKKOS_LAMBDA (const int &cellOrdinal, const int &d1, const int &d2) {
-          const int nodeZero = 0;    // nodeZero has derivative -1 in every dimension.
-          const int node     = d2+1; // this is the only node other than the 0 node that has non-zero derivative in the d2 direction -- and this has unit derivative (except in 1D, where each derivative is ±0.5)
-          const auto & nodeCoord     = nodes(cellToNodes(cellOrdinal,node),     d1);
-          const auto & nodeZeroCoord = nodes(cellToNodes(cellOrdinal,nodeZero), d1);
-          const PointScalar J_ij = nodeCoord - nodeZeroCoord;
-          dataView3(cellOrdinal,d1,d2) = (spaceDim != 1) ? J_ij : J_ij * 0.5;
-        });
+        if(nodes_.rank() == 2) {
+          Kokkos::parallel_for("compute first-order simplex Jacobians", policy,
+          KOKKOS_LAMBDA (const int &cellOrdinal, const int &d1, const int &d2) {
+            const int nodeZero = 0;    // nodeZero has derivative -1 in every dimension.
+            const int node     = d2+1; // this is the only node other than the 0 node that has non-zero derivative in the d2 direction -- and this has unit derivative (except in 1D, where each derivative is ±0.5)
+            const auto & nodeCoord     = nodes(cellToNodes(cellOrdinal,node),     d1);
+            const auto & nodeZeroCoord = nodes(cellToNodes(cellOrdinal,nodeZero), d1);
+            const PointScalar J_ij = nodeCoord - nodeZeroCoord;
+            dataView3(cellOrdinal,d1,d2) = (spaceDim != 1) ? J_ij : J_ij * 0.5;
+          });
+        } else {
+          Kokkos::parallel_for("compute first-order simplex Jacobians", policy,
+          KOKKOS_LAMBDA (const int &cellOrdinal, const int &d1, const int &d2) {
+            const int nodeZero = 0;    // nodeZero has derivative -1 in every dimension.
+            const int node     = d2+1; // this is the only node other than the 0 node that has non-zero derivative in the d2 direction -- and this has unit derivative (except in 1D, where each derivative is ±0.5)
+            const auto & nodeCoord     = nodes(cellOrdinal,node,d1);
+            const auto & nodeZeroCoord = nodes(cellOrdinal,nodeZero,d1);
+            const PointScalar J_ij = nodeCoord - nodeZeroCoord;
+            dataView3(cellOrdinal,d1,d2) = (spaceDim != 1) ? J_ij : J_ij * 0.5;
+          });
+        }
       }
       else
       {
@@ -1425,7 +1437,7 @@ namespace Intrepid2
       INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE((dim < 0),                                      std::invalid_argument, "dim out of bounds" );
       INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE(dim > spaceDim,                                 std::invalid_argument, "dim out of bounds" );
 #endif
-      if (cellToNodes_.is_allocated())
+      if (cellToNodes_.is_allocated() && (nodes_.rank() == 2))
       {
         const int nodeNumber = cellToNodes_(cell,node);
         return nodes_(nodeNumber,dim);
