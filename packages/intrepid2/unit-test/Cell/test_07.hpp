@@ -21,6 +21,7 @@
 #include "Teuchos_oblackholestream.hpp"
 #include "Teuchos_RCP.hpp"
 #include "Teuchos_ScalarTraits.hpp"
+#include "Intrepid2_CellTools.hpp"
 
 namespace Intrepid2 {
   
@@ -97,6 +98,17 @@ namespace Intrepid2 {
         _output(i) = check;        
       }
     };
+
+#define INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, points, shtopo, cellTools) \
+    {                                                                                   \
+        shards::CellTopology topo( shards::getCellTopologyData<shtopo>());              \
+        assert(ct::hasReferenceCell(topo));                                                    \
+        cellTools::checkPointwiseInclusion(inCell, points, topo );                    \
+        if (inCell(0)==0)                                                               \
+          *outStream << "Error : Point 0 is inside the element " << topo.getName() << " but PointWiseInclusion says otherwise";  \
+        if (inCell(1)==1)                                                                                                        \
+          *outStream << "Error : Point 1 is outside the element " << topo.getName() << " but PointWiseInclusion says otherwise"; \
+    }                                                                                                                            \
         
     template<typename ValueType, typename DeviceType>
     int CellTools_Test07(const bool verbose) {
@@ -161,6 +173,76 @@ namespace Intrepid2 {
           INTREPID2_TEST_CHECK_POINT_INCLUSION(offset, false, shards::Pyramid<>,       Impl::Pyramid<5>);
           INTREPID2_TEST_CHECK_POINT_INCLUSION(offset, false, shards::Wedge<>,         Impl::Wedge<6>);
         }
+
+
+
+      } catch (std::logic_error &err) {
+        //============================================================================================//
+        // Wrap up test: check if the test broke down unexpectedly due to an exception                //
+        //============================================================================================//
+        *outStream << err.what() << "\n";
+        errorFlag = -1000;
+      }
+
+            try {
+        
+        *outStream
+          << "\n"
+          << "===============================================================================\n" 
+          << "| Test 1: test Point wise inclusion points\n"
+          << "===============================================================================\n\n";
+
+        
+
+        Kokkos::DynRankView<ValueType,DeviceType> pts1d("pts1d", 2, 1);
+        Kokkos::DynRankView<ValueType,DeviceType> pts2d("pts2d", 2, 2);
+        Kokkos::DynRankView<ValueType,DeviceType> pts3d("pts3d", 2, 3);
+        Kokkos::DynRankView<int,DeviceType> inCell("inCell", 2);
+        double eps = 1e-4;
+        using ct = Intrepid2::CellTools<DeviceType>;
+
+
+        pts1d(0,0) = -1.0+eps;
+        pts1d(1,0) = -1.0-eps;
+        
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts1d, shards::Line<2>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts1d, shards::Line<3>, ct);
+
+        pts2d(0,0) = 0.0+eps; pts2d(0,1) = 0.0+eps;
+        pts2d(1,0) = 0.0-eps; pts2d(1,1) = 0.0-eps;
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Triangle<3>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Triangle<6>, ct);
+
+        pts2d(0,0) = -1.0+eps; pts2d(0,1) = -1.0+eps;
+        pts2d(1,0) = -1.0-eps; pts2d(1,1) = -1.0-eps;
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Quadrilateral<4>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Quadrilateral<8>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Quadrilateral<9>, ct);
+
+        pts3d(0,0) = 0.0+eps; pts3d(0,1) = 0.0+eps; pts3d(0,2) = 0.0+eps;
+        pts3d(1,0) = 0.0-eps; pts3d(1,1) = 0.0-eps; pts3d(1,2) = 0.0-eps;
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Tetrahedron<4>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Tetrahedron<10>, ct);
+
+        pts3d(0,0) = -1.0+eps; pts3d(0,1) = -1.0+eps; pts3d(0,2) = 0.0+eps;
+        pts3d(1,0) = -1.0-eps; pts3d(1,1) = -1.0-eps; pts3d(1,2) = 0.0-eps;
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Pyramid<5>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Pyramid<13>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Pyramid<14>, ct);
+
+        pts3d(0,0) = 0.0+eps; pts3d(0,1) = 0.0+eps; pts3d(0,2) = -1.0+eps;
+        pts3d(1,0) = 0.0-eps; pts3d(1,1) = 0.0-eps; pts3d(1,2) = -1.0-eps;
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Wedge<6>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Wedge<15>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Wedge<18>, ct);
+
+        pts3d(0,0) = -1.0+eps; pts3d(0,1) = -1.0+eps; pts3d(0,2) = -1.0+eps;
+        pts3d(1,0) = -1.0-eps; pts3d(1,1) = -1.0-eps; pts3d(1,2) = -1.0-eps;
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Hexahedron<8>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Hexahedron<20>, ct);
+        INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Hexahedron<27>, ct);
+
+
 
       } catch (std::logic_error &err) {
         //============================================================================================//

@@ -1408,6 +1408,15 @@ public:
     //                                   const double &                threshold = INTREPID2_THRESHOLD);
 
 
+    
+    template<typename cellTopologyTagType,
+           typename OutputViewType,
+           typename inputViewType>
+    static void checkPointwiseInclusion(OutputViewType inCell, 
+                                      const inputViewType points,
+                                      const double threshold); 
+
+
 
     /** \brief  Checks every point in a set for inclusion in a reference cell.
 
