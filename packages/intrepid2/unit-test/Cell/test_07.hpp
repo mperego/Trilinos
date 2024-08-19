@@ -106,6 +106,7 @@ namespace Intrepid2 {
         cellTools::checkPointwiseInclusion(inCell, points, topo );                      \
         auto inCell_host = Kokkos::create_mirror_view(inCell);                          \
         Kokkos::deep_copy(inCell_host, inCell);                                         \
+        auto numPoints = points.extent(0);                                              \
         if (inCell_host(0)==0) {                                                        \
           *outStream << "Error : Point 0 is inside the element " <<                     \
           topo.getName() << " but PointWiseInclusion says otherwise";                   \
@@ -116,7 +117,18 @@ namespace Intrepid2 {
           topo.getName() << " but PointWiseInclusion says otherwise";                   \
           errorFlag++;                                                                  \
         }                                                                               \
-    }                                                                                   \
+        if (numPoints>2 && inCell_host(2)==0)     {                              \
+          *outStream << "Error : Point 2 is inside the element " <<                     \
+          topo.getName() << " but PointWiseInclusion says otherwise";                   \
+          errorFlag++;                                                                  \
+        }                                                                               \
+        if (numPoints>3 && inCell_host(3)==1)     {                              \
+          *outStream << "Error : Point 2 is outside the element " <<                    \
+          topo.getName() << " but PointWiseInclusion says otherwise";                   \
+          errorFlag++;                                                                  \
+        }                                                                               \
+      }                                                                                 \
+    
         
     template<typename ValueType, typename DeviceType>
     int CellTools_Test07(const bool verbose) {
@@ -202,10 +214,10 @@ namespace Intrepid2 {
 
         
 
-        Kokkos::DynRankView<ValueType,DeviceType> pts1d("pts1d", 2, 1);
-        Kokkos::DynRankView<ValueType,DeviceType> pts2d("pts2d", 2, 2);
-        Kokkos::DynRankView<ValueType,DeviceType> pts3d("pts3d", 2, 3);
-        Kokkos::DynRankView<int,DeviceType> inCell("inCell", 2);
+        Kokkos::DynRankView<ValueType,DeviceType> pts1d("pts1d", 4, 1);
+        Kokkos::DynRankView<ValueType,DeviceType> pts2d("pts2d", 4, 2);
+        Kokkos::DynRankView<ValueType,DeviceType> pts3d("pts3d", 4, 3);
+        Kokkos::DynRankView<int,DeviceType> inCell("inCell", 4);
         auto pts1d_h = Kokkos::create_mirror_view(pts1d); 
         auto pts2d_h = Kokkos::create_mirror_view(pts2d); 
         auto pts3d_h = Kokkos::create_mirror_view(pts3d); 
@@ -215,6 +227,8 @@ namespace Intrepid2 {
 
         pts1d_h(0,0) = -1.0+eps;
         pts1d_h(1,0) = -1.0-eps;
+        pts1d_h(2,0) = 1.0-eps;
+        pts1d_h(3,0) = 1.0+eps;
         Kokkos::deep_copy(pts1d,pts1d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts1d, shards::Line<2>, ct);
@@ -222,6 +236,8 @@ namespace Intrepid2 {
 
         pts2d_h(0,0) = 0.0+eps; pts2d_h(0,1) = 0.0+eps;
         pts2d_h(1,0) = 0.0-eps; pts2d_h(1,1) = 0.0-eps;
+        pts2d_h(2,0) = 0.5-eps; pts2d_h(2,1) = 0.5-eps;
+        pts2d_h(3,0) = 0.5+eps; pts2d_h(3,1) = 0.5+eps;
         Kokkos::deep_copy(pts2d,pts2d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Triangle<3>, ct);
@@ -229,6 +245,8 @@ namespace Intrepid2 {
 
         pts2d_h(0,0) = -1.0+eps; pts2d_h(0,1) = -1.0+eps;
         pts2d_h(1,0) = -1.0-eps; pts2d_h(1,1) = -1.0-eps;
+        pts2d_h(2,0) = 0.0; pts2d_h(2,1) = -1.0+eps;
+        pts2d_h(3,0) = 0.0; pts2d_h(3,1) = -1.0-eps;
         Kokkos::deep_copy(pts2d,pts2d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts2d, shards::Quadrilateral<4>, ct);
@@ -237,6 +255,8 @@ namespace Intrepid2 {
 
         pts3d_h(0,0) = 0.0+eps; pts3d_h(0,1) = 0.0+eps; pts3d_h(0,2) = 0.0+eps;
         pts3d_h(1,0) = 0.0-eps; pts3d_h(1,1) = 0.0-eps; pts3d_h(1,2) = 0.0-eps;
+        pts3d_h(2,0) = 1./3.-eps; pts3d_h(2,1) = 1./3.-eps; pts3d_h(2,2) = 1./3.-eps;
+        pts3d_h(3,0) = 1./3.+eps; pts3d_h(3,1) = 1./3.+eps; pts3d_h(3,2) = 1./3.+eps;
         Kokkos::deep_copy(pts3d,pts3d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Tetrahedron<4>, ct);
@@ -244,6 +264,8 @@ namespace Intrepid2 {
 
         pts3d_h(0,0) = -1.0+eps; pts3d_h(0,1) = -1.0+eps; pts3d_h(0,2) = 0.0+eps;
         pts3d_h(1,0) = -1.0-eps; pts3d_h(1,1) = -1.0-eps; pts3d_h(1,2) = 0.0-eps;
+        pts3d_h(2,0) = 0.0; pts3d_h(2,1) = 0.0; pts3d_h(2,2) = 0.0+eps;
+        pts3d_h(3,0) = 0.0; pts3d_h(3,1) = 0.0; pts3d_h(3,2) = 0.0-eps;
         Kokkos::deep_copy(pts3d,pts3d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Pyramid<5>, ct);
@@ -252,6 +274,8 @@ namespace Intrepid2 {
 
         pts3d_h(0,0) = 0.0+eps; pts3d_h(0,1) = 0.0+eps; pts3d_h(0,2) = -1.0+eps;
         pts3d_h(1,0) = 0.0-eps; pts3d_h(1,1) = 0.0-eps; pts3d_h(1,2) = -1.0-eps;
+        pts3d_h(2,0) = 0.5-eps; pts3d_h(2,1) = 0.5-eps; pts3d_h(2,2) = 0.0;
+        pts3d_h(3,0) = 0.5+eps; pts3d_h(3,1) = 0.5+eps; pts3d_h(3,2) = 0.0;
         Kokkos::deep_copy(pts3d,pts3d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Wedge<6>, ct);
@@ -260,6 +284,8 @@ namespace Intrepid2 {
 
         pts3d_h(0,0) = -1.0+eps; pts3d_h(0,1) = -1.0+eps; pts3d_h(0,2) = -1.0+eps;
         pts3d_h(1,0) = -1.0-eps; pts3d_h(1,1) = -1.0-eps; pts3d_h(1,2) = -1.0-eps;
+        pts3d_h(2,0) = 0.0; pts3d_h(2,1) = 0.0; pts3d_h(2,2) = -1.0+eps;
+        pts3d_h(3,0) = 0.0; pts3d_h(3,1) = 0.0; pts3d_h(3,2) = -1.0-eps;
         Kokkos::deep_copy(pts3d,pts3d_h);
 
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, pts3d, shards::Hexahedron<8>, ct);
