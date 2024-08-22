@@ -181,8 +181,8 @@ namespace Intrepid2 {
     struct MapPoints<shards::Pyramid<5>::key> {
       double operator()(const double* coords, int comp) {
         MapPoints<shards::Tetrahedron<4>::key> linearMap;
-        const double oneMinus = 1.0-1e-14;
-        const auto& x = coords[0]; const auto& y = coords[1]; const auto z = (coords[2] < oneMinus) ? coords[2] : oneMinus;
+        const double eps = epsilon();
+        const auto& x = coords[0]; const auto& y = coords[1]; const auto z = (1.0 - coords[2] < eps) ? 1.0-eps : coords[2];
         return linearMap(coords, comp)-0.1*x*y/(1.0-z);  //for simplicity we choose the same quadratic term for all components 
       }
     };
@@ -191,8 +191,8 @@ namespace Intrepid2 {
     struct MapPoints<shards::Pyramid<13>::key> {
       double operator()(const double* coords, int comp) {
         MapPoints<shards::Tetrahedron<10>::key> quadraticMap;
-        const double oneMinus = 1.0-1e-14;
-        const auto& x = coords[0]; const auto& y = coords[1]; const auto z = (coords[2] < oneMinus) ? coords[2] : oneMinus;
+        const double eps = epsilon();
+        const auto& x = coords[0]; const auto& y = coords[1]; const auto z = (1.0 - coords[2] < eps) ? 1.0-eps : coords[2];
         return quadraticMap(coords, comp)-0.1*x*y/(1.0-z)*(1.0-x+y);  //for simplicity we choose the same quadratic term for all components 
       }
     };
