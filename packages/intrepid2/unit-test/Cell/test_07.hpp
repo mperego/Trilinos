@@ -504,8 +504,8 @@ namespace Intrepid2 {
         INTREPID2_COMPUTE_POINTS_AND_CELL_NODES_IN_PHYS_SPACE(inCell, pts3d_h, physPoints, physNodes, shards::Tetrahedron<10>, ct);
         INTREPID2_TEST_CHECK_POINTWISE_INCLUSION(inCell, physPoints, physNodes, shards::Tetrahedron<10>, ct);
 
-        pts3d_h(0,0,0) = -1.0+eps; pts3d_h(0,0,1) = -1.0+eps; pts3d_h(0,0,2) = 0.0+eps;  //points near vertex (in)
-        pts3d_h(0,1,0) = -1.0-eps; pts3d_h(0,1,1) = -1.0-eps; pts3d_h(0,1,2) = 0.0-eps;  //points near vertex (out)
+        pts3d_h(0,0,0) = -1.0+eps; pts3d_h(0,0,1) = -1.0+eps; pts3d_h(0,0,2) = 0.0+0.5*eps;  //points near vertex (in)
+        pts3d_h(0,1,0) = -1.0-eps; pts3d_h(0,1,1) = -1.0-eps; pts3d_h(0,1,2) = 0.0-0.5*eps;  //points near vertex (out)
         pts3d_h(0,2,0) = 0.0; pts3d_h(0,2,1) = 0.0; pts3d_h(0,2,2) = 0.0+eps;            //points near face (in)
         pts3d_h(0,3,0) = 0.0; pts3d_h(0,3,1) = 0.0; pts3d_h(0,3,2) = 0.0-eps;            //points near face (out)
         Kokkos::deep_copy(pts3d,pts3d_h);
