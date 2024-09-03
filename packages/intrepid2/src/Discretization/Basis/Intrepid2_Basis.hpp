@@ -379,6 +379,19 @@ using HostBasisPtr = BasisPtr<typename Kokkos::HostSpace::device_type, OutputTyp
       }
     }
 
+    KOKKOS_INLINE_FUNCTION
+    virtual
+    void getValues(       OutputViewType /* outputValues */,
+                    const PointViewType  /* inputPoints */,
+                    const EOperator /* operatorType */,
+                    const typename Kokkos::TeamPolicy<ExecutionSpace>::member_type& team_member,
+                          typename ExecutionSpace::scratch_memory_space &scratchStorage, 
+                    const ordinal_type subcellDim=-1,
+                    const ordinal_type subcellOrdinal=-1) const {
+      INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::logic_error,
+                                    ">>> ERROR (Basis::getValues): this method (FEM) is not supported or should be overridden accordingly by derived classes.");
+    }
+
     /** \brief  Evaluation of a FEM basis on a <strong>reference cell</strong>.
 
         Returns values of <var>operatorType</var> acting on FEM basis functions for a set of

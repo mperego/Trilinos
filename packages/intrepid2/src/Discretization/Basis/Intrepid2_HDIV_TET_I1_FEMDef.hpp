@@ -155,6 +155,40 @@ namespace Intrepid2 {
 
   }
 
+  template<typename DT, typename OT, typename PT>
+  KOKKOS_INLINE_FUNCTION
+  void 
+  Basis_HDIV_TET_I1_FEM<DT,OT,PT>::getValues(       
+          OutputViewType outputValues,
+      const PointViewType  inputPoints,
+      const EOperator operatorType,
+      const typename Kokkos::TeamPolicy<typename DT::execution_space>::member_type& team_member,
+            typename DT::execution_space::scratch_memory_space & /*scratchStorage*/, 
+      const ordinal_type subcellDim,
+      const ordinal_type subcellOrdinal) const {
+      //using member_type = typename Kokkos::TeamPolicy<typename DT::execution_space>::member_type;
+      const int numPoints = inputPoints.extent(0);
+      if(subcellDim<=0 && subcellOrdinal==-1) {
+        switch(operatorType) {
+          case OPERATOR_VALUE:
+            Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (int& pt) {
+              auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), pt, Kokkos::ALL() );
+              const auto input  = Kokkos::subview( inputPoints,                 pt, Kokkos::ALL() );
+              Impl::Basis_HDIV_TET_I1_FEM::Serial<OPERATOR_VALUE>::getValues( output, input );
+            });
+            break;
+          case OPERATOR_DIV:
+            Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (int& pt) {
+              auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), pt, Kokkos::ALL() );
+              const auto input  = Kokkos::subview( inputPoints,                 pt, Kokkos::ALL() );
+              Impl::Basis_HDIV_TET_I1_FEM::Serial<OPERATOR_DIV>::getValues( output, input );
+            });
+            break;
+          default: {}
+      }
+    }
+  }
+
   // -------------------------------------------------------------------------------------
 
   template<typename DT, typename OT, typename PT>
