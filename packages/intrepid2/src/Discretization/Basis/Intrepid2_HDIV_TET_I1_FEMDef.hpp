@@ -167,7 +167,9 @@ namespace Intrepid2 {
       const ordinal_type subcellDim,
       const ordinal_type subcellOrdinal) const {
       //using member_type = typename Kokkos::TeamPolicy<typename DT::execution_space>::member_type;
+      using WorkViewType = Kokkos::DynRankView<typename OutputViewType::value_type,typename DT::execution_space::scratch_memory_space,Kokkos::MemoryTraits<Kokkos::Unmanaged> >;
       const int numPoints = inputPoints.extent(0);
+      WorkViewType myView(team_member.team_shmem(), this->basisCardinality_*team_member.team_size(), numPoints);
       if(subcellDim<=0 && subcellOrdinal==-1) {
         switch(operatorType) {
           case OPERATOR_VALUE:

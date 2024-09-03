@@ -291,7 +291,7 @@ namespace Intrepid2 {
           
           auto tetBasisPtr_device = copy_virtual_class_to_device<DeviceType,Basis_HDIV_TET_I1_FEM<DeviceType,outputValueType,pointValueType>>(*tetBasisPtr);
           auto tetBasisRawPtr_device = tetBasisPtr_device.get();
-          Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO),
+          Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(1, Kokkos::PerTeam(numFields*numPoints)),
                  KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
                           typename DeviceSpaceType::scratch_memory_space scratch;
                  auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
