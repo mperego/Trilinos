@@ -507,6 +507,7 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
     constexpr ordinal_type order = 2;
     if(order <= maxOrder) {
       QuadBasisType quadBasis(order);
+      auto quadBasisPtr = Teuchos::rcp(new QuadBasisType(order));
 
       DynRankViewHostScalarValueType ConstructWithLabel(quadNodesHost, 10, 2);
       DynRankViewPointValueType ConstructWithLabelPointView(quadNodes, 10, 2);
@@ -569,6 +570,47 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
           }
         }
       }
+
+      {
+        // Check VALUE of basis functions: resize vals to rank-2 container:
+        const ordinal_type numCells = 200;
+        DynRankViewOutValueType ConstructWithLabelOutView(vals, numCells, numFields, numPoints);
+        //quadBasis.getValues(space, vals, quadNodes, OPERATOR_VALUE);
+
+        auto quadBasisPtr_device = copy_virtual_class_to_device<DeviceType,QuadBasisType>(*quadBasisPtr);
+        auto quadBasisRawPtr_device = quadBasisPtr_device.get();
+        int teamSize = 3*(order+1)*numPoints*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
+        Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(0, Kokkos::PerTeam(teamSize)),
+                 KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
+                 typename DeviceType::execution_space::scratch_memory_space scratch;
+                 auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
+            quadBasisRawPtr_device->getValues(vals_cell, quadNodes, OPERATOR_VALUE, team_member, scratch);
+          });
+          
+        auto vals_host = Kokkos::create_mirror_view(vals);
+        Kokkos::deep_copy(vals_host, vals);
+        for (ordinal_type ic = 0; ic < numCells; ++ic) {
+          for (ordinal_type i = 0; i < numFields; ++i) {
+            for (ordinal_type j = 0; j < numPoints; ++j) {
+
+              // Compute offset for (F,P) container
+              ordinal_type l =  j + i * numPoints;
+              if (std::abs(vals_host(ic,i,j) - basisValues[l]) > tol) {
+                errorFlag++;
+                *outStream << std::setw(70) << "^^^^----FAILURE!" << "\n";
+
+                // Output the multi-index of the value where the error is:
+                *outStream << " At multi-index { ";
+                *outStream << ic << " ";*outStream << i << " ";*outStream << j << " ";
+                *outStream << "}  computed value: " << vals_host(ic,i,j)
+                                << " but reference value: " << basisValues[l] << "\n";
+              }
+            }
+          }
+        }
+      }
+
+
       *outStream << " -- Testing OPERATOR_GRAD \n";
       {
         // Check GRAD of basis function: resize vals to rank-3 container
