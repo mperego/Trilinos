@@ -579,9 +579,11 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
 
         auto quadBasisPtr_device = copy_virtual_class_to_device<DeviceType,QuadBasisType>(*quadBasisPtr);
         auto quadBasisRawPtr_device = quadBasisPtr_device.get();
-        int teamSize = 3*(order+1)*numPoints*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
+        int threadSize = 3*(order+1)*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
         int scratch_space_level =1;
-        Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(scratch_space_level, Kokkos::PerTeam(teamSize)),
+        int maxThreads = typename DeviceType::execution_space().concurrency();
+        *outStream << "numPoints, numThreads" << numPoints << " " << maxThreads << std::endl;
+        Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(scratch_space_level, Kokkos::PerThread(threadSize)),
                  KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
                  //typename DeviceType::execution_space::scratch_memory_space scratch;
                  auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
