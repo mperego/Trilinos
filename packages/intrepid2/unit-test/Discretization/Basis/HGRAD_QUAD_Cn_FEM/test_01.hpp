@@ -581,18 +581,30 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
         auto quadBasisRawPtr_device = quadBasisPtr_device.get();
         int threadSize = 3*(order+1)*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
         int scratch_space_level =1;
-        int maxThreads = typename DeviceType::execution_space().concurrency();
-        *outStream << "numPoints, numThreads" << numPoints << " " << maxThreads << std::endl;
-        Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(scratch_space_level, Kokkos::PerThread(threadSize)),
+        Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", numCells);
+        Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
+        
+        //*outStream << "numPoints, numThreads" << numPoints << " " << maxThreads << std::endl;
+        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO);
+        teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerThread(threadSize));
+        Kokkos::parallel_for (teamPolicy,
                  KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
                  //typename DeviceType::execution_space::scratch_memory_space scratch;
                  auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
+            teamSize(team_member.league_rank()) = team_member.team_size();
+            leagueSize(team_member.league_rank()) = team_member.league_size();
             quadBasisRawPtr_device->getValues(vals_cell, quadNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
           });
           
         auto vals_host = Kokkos::create_mirror_view(vals);
         Kokkos::deep_copy(vals_host, vals);
+        auto teamSize_host = Kokkos::create_mirror_view(teamSize);
+        Kokkos::deep_copy(teamSize_host, teamSize);
+        auto leagueSize_host = Kokkos::create_mirror_view(leagueSize);
+        Kokkos::deep_copy(leagueSize_host, leagueSize);
         for (ordinal_type ic = 0; ic < numCells; ++ic) {
+          if (ic<10)
+          *outStream << " At cell" << ic << ", league size: " << leagueSize_host(ic) << ", team size: " << teamSize_host(ic) << std::endl;
           for (ordinal_type i = 0; i < numFields; ++i) {
             for (ordinal_type j = 0; j < numPoints; ++j) {
 
