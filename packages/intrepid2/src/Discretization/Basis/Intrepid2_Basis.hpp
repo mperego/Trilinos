@@ -379,6 +379,18 @@ using HostBasisPtr = BasisPtr<typename Kokkos::HostSpace::device_type, OutputTyp
       }
     }
 
+
+    KOKKOS_INLINE_FUNCTION
+    virtual
+    void getScratchSpaceSize(       ordinal_type& perTeamSpaceSize,
+                                    ordinal_type& perThreadSpaceSize,
+                                const PointViewType inputPoints) const {
+      INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::logic_error,
+                                    ">>> ERROR (Basis::getValuesScratchSpace): this method (FEM) is not supported or should be overridden accordingly by derived classes.");
+    }
+
+
+
     KOKKOS_INLINE_FUNCTION
     virtual
     void getValues(       OutputViewType /* outputValues */,

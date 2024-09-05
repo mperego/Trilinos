@@ -243,6 +243,17 @@ namespace Intrepid2 {
   template<typename DT, typename OT, typename PT>
   KOKKOS_INLINE_FUNCTION
   void 
+  Basis_HGRAD_QUAD_Cn_FEM<DT,OT,PT>::getScratchSpaceSize(       
+                                    ordinal_type& perTeamSpaceSize,
+                                    ordinal_type& perThreadSpaceSize,
+                              const PointViewType inputPoints) const {
+    perTeamSpaceSize = 0;
+    perThreadSpaceSize = 3*this->vinv_.extent(0)*get_dimension_scalar(inputPoints)*sizeof(typename BasisBase::scalarType);
+  }
+
+  template<typename DT, typename OT, typename PT>
+  KOKKOS_INLINE_FUNCTION
+  void 
   Basis_HGRAD_QUAD_Cn_FEM<DT,OT,PT>::getValues(       
           OutputViewType outputValues,
       const PointViewType  inputPoints,

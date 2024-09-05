@@ -579,17 +579,14 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
 
         auto quadBasisPtr_device = copy_virtual_class_to_device<DeviceType,QuadBasisType>(*quadBasisPtr);
         auto quadBasisRawPtr_device = quadBasisPtr_device.get();
-        int threadSize = 3*(order+1)*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
+        int perThreadSpaceSize(0), perTeamSpaceSize(0);
+        quadBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,quadNodes);// = 3*(order+1)*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
         int scratch_space_level =1;
         Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", numCells);
         Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
         
-        //*outStream << "numPoints, numThreads" << numPoints << " " << maxThreads << std::endl;
-        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicytmp(numCells, Kokkos::AUTO, get_dimension_scalar(quadNodes));
-        ordinal_type team_size = teamPolicytmp.team_size();
-        std::cout << "Team Size" << team_size <<std::endl;
-        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, std::min(team_size,numPoints),get_dimension_scalar(quadNodes));
-        teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerThread(threadSize));
+        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,get_dimension_scalar(quadNodes));
+        teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
         Kokkos::parallel_for (teamPolicy,
                  KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
                  //typename DeviceType::execution_space::scratch_memory_space scratch;
