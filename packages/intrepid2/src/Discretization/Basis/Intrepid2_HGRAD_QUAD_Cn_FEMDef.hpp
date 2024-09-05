@@ -48,8 +48,8 @@ namespace Intrepid2 {
       auto ptr1 = work.data()+cardLine*npts*dim_s;
       auto ptr2 = work.data()+2*cardLine*npts*dim_s;
       
-      typedef typename Kokkos::DynRankView<typename workViewType::value_type, typename workViewType::memory_space> viewType;
-      auto vcprop = Kokkos::common_view_alloc_prop(work);
+      typedef typename Kokkos::DynRankView<typename inputViewType::value_type, typename workViewType::memory_space> viewType;
+      auto vcprop = Kokkos::common_view_alloc_prop(input);
       
       switch (opType) {
       case OPERATOR_VALUE: {
@@ -257,9 +257,9 @@ namespace Intrepid2 {
       //WorkViewType myView(team_member.team_shmem(), numPoints, 3*this->vin_.extent(0));//*get_dimension_scalar(inputPoints));
       //auto vcprop = Kokkos::common_view_alloc_prop(inputPoints);
       using workViewType = Kokkos::DynRankView< double,typename DT::execution_space::scratch_memory_space,Kokkos::MemoryTraits<Kokkos::Unmanaged> >;
-      using workViewType1 = Kokkos::DynRankView< typename PointViewType::value_type,typename DT::execution_space::scratch_memory_space,Kokkos::MemoryTraits<Kokkos::Unmanaged> >;
+      //using workViewType1 = Kokkos::DynRankView< typename PointViewType::value_type,typename DT::execution_space::scratch_memory_space,Kokkos::MemoryTraits<Kokkos::Unmanaged> >;
       workViewType workView(team_member.team_shmem(), 3*this->vinv_.extent(0)*get_dimension_scalar(inputPoints)*numPoints);
-      auto vcprop = Kokkos::common_view_alloc_prop(inputPoints);
+      auto vcprop = Kokkos::common_view_alloc_prop(workView);
             //auto ptr0 = work.data();
       //workViewType  workView(Kokkos::view_wrap(team_member.team_shmem(), vcprop), numPoints, 3*this->vinv_.extent(0));
       using range_type = Kokkos::pair<ordinal_type,ordinal_type>;
@@ -274,7 +274,7 @@ namespace Intrepid2 {
               typename workViewType::pointer_type ptr = workView.data() + 3*this->vinv_.extent(0)*get_dimension_scalar(inputPoints)*pt;
               
           
-              workViewType1  work(Kokkos::view_wrap(ptr,vcprop), 3*this->vinv_.extent(0));
+              workViewType  work(Kokkos::view_wrap(ptr,vcprop), + 3*this->vinv_.extent(0)*get_dimension_scalar(inputPoints));
               Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_VALUE>::getValues( output, input, work, this->vinv_ );
             });
             break;
