@@ -573,7 +573,7 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
 
       {
         // Check VALUE of basis functions: resize vals to rank-2 container:
-        const ordinal_type numCells = 200;
+        const ordinal_type numCells = 2000;
         DynRankViewOutValueType ConstructWithLabelOutView(vals, numCells, numFields, numPoints);
         //quadBasis.getValues(space, vals, quadNodes, OPERATOR_VALUE);
 
