@@ -385,7 +385,7 @@ using HostBasisPtr = BasisPtr<typename Kokkos::HostSpace::device_type, OutputTyp
                     const PointViewType  /* inputPoints */,
                     const EOperator /* operatorType */,
                     const typename Kokkos::TeamPolicy<ExecutionSpace>::member_type& team_member,
-                          typename ExecutionSpace::scratch_memory_space &scratchStorage, 
+                    const typename ExecutionSpace::scratch_memory_space &scratchStorage, 
                     const ordinal_type subcellDim=-1,
                     const ordinal_type subcellOrdinal=-1) const {
       INTREPID2_TEST_FOR_EXCEPTION_DEVICE_SAFE( true, std::logic_error,

@@ -580,11 +580,12 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
         auto quadBasisPtr_device = copy_virtual_class_to_device<DeviceType,QuadBasisType>(*quadBasisPtr);
         auto quadBasisRawPtr_device = quadBasisPtr_device.get();
         int teamSize = 3*(order+1)*numPoints*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
-        Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(0, Kokkos::PerTeam(teamSize)),
+        int scratch_space_level =1;
+        Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(scratch_space_level, Kokkos::PerTeam(teamSize)),
                  KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
-                 typename DeviceType::execution_space::scratch_memory_space scratch;
+                 //typename DeviceType::execution_space::scratch_memory_space scratch;
                  auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
-            quadBasisRawPtr_device->getValues(vals_cell, quadNodes, OPERATOR_VALUE, team_member, scratch);
+            quadBasisRawPtr_device->getValues(vals_cell, quadNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
           });
           
         auto vals_host = Kokkos::create_mirror_view(vals);
