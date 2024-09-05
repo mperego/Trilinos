@@ -573,7 +573,7 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
 
       {
         // Check VALUE of basis functions: resize vals to rank-2 container:
-        const ordinal_type numCells = 2000;
+        const ordinal_type numCells = 200;
         DynRankViewOutValueType ConstructWithLabelOutView(vals, numCells, numFields, numPoints);
         //quadBasis.getValues(space, vals, quadNodes, OPERATOR_VALUE);
 
@@ -585,7 +585,10 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
         Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
         
         //*outStream << "numPoints, numThreads" << numPoints << " " << maxThreads << std::endl;
-        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO);
+        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicytmp(numCells, Kokkos::AUTO, get_dimension_scalar(quadNodes));
+        ordinal_type team_size = teamPolicytmp.team_size();
+        std::cout << "Team Size" << team_size <<std::endl;
+        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, std::min(team_size,numPoints),get_dimension_scalar(quadNodes));
         teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerThread(threadSize));
         Kokkos::parallel_for (teamPolicy,
                  KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
