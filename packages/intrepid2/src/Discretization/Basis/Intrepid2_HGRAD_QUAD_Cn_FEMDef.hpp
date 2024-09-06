@@ -241,12 +241,12 @@ namespace Intrepid2 {
   }
 
   template<typename DT, typename OT, typename PT>
-  KOKKOS_INLINE_FUNCTION
   void 
   Basis_HGRAD_QUAD_Cn_FEM<DT,OT,PT>::getScratchSpaceSize(       
                                     ordinal_type& perTeamSpaceSize,
                                     ordinal_type& perThreadSpaceSize,
-                              const PointViewType inputPoints) const {
+                              const PointViewType inputPoints,
+                              const EOperator operatorType) const {
     perTeamSpaceSize = 0;
     perThreadSpaceSize = 3*this->vinv_.extent(0)*get_dimension_scalar(inputPoints)*sizeof(typename BasisBase::scalarType);
   }
@@ -269,34 +269,32 @@ namespace Intrepid2 {
       WorkViewType workView(scratchStorage, sizePerPoint*team_member.team_size());
       using range_type = Kokkos::pair<ordinal_type,ordinal_type>;
 
-      if(subcellDim<=0 && subcellOrdinal==-1) {
-        switch(operatorType) {
-          case OPERATOR_VALUE:
-            Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (ordinal_type& pt) {
-              auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), range_type  (pt,pt+1), Kokkos::ALL() );
-              const auto input  = Kokkos::subview( inputPoints,                 range_type(pt, pt+1), Kokkos::ALL() );
-              WorkViewType  work(workView.data() + sizePerPoint*team_member.team_rank(), sizePerPoint);
-              Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_VALUE>::getValues( output, input, work, this->vinv_ );
-            });
-            break;
-          case OPERATOR_GRAD:
-            Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (ordinal_type& pt) {
-              auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), range_type(pt,pt+1), Kokkos::ALL() );
-              const auto input  = Kokkos::subview( inputPoints,                 range_type(pt,pt+1), Kokkos::ALL() );
-              WorkViewType  work(workView.data() + sizePerPoint*team_member.team_rank(), sizePerPoint);
-              Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_GRAD>::getValues( output, input, work, this->vinv_ );
-            });
-            break;
-            case OPERATOR_CURL:
-            Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (ordinal_type& pt) {
-              auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), range_type(pt,pt+1), Kokkos::ALL() );
-              const auto input  = Kokkos::subview( inputPoints,                 range_type(pt,pt+1), Kokkos::ALL() );
-              WorkViewType  work(workView.data() + sizePerPoint*team_member.team_rank(), sizePerPoint);
-              Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_CURL>::getValues( output, input, work, this->vinv_ );
-            });
-            break;
-          default: {}
-      }
+      switch(operatorType) {
+        case OPERATOR_VALUE:
+          Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (ordinal_type& pt) {
+            auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), range_type  (pt,pt+1), Kokkos::ALL() );
+            const auto input  = Kokkos::subview( inputPoints,                 range_type(pt, pt+1), Kokkos::ALL() );
+            WorkViewType  work(workView.data() + sizePerPoint*team_member.team_rank(), sizePerPoint);
+            Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_VALUE>::getValues( output, input, work, this->vinv_ );
+          });
+          break;
+        case OPERATOR_GRAD:
+          Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (ordinal_type& pt) {
+            auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), range_type(pt,pt+1), Kokkos::ALL() );
+            const auto input  = Kokkos::subview( inputPoints,                 range_type(pt,pt+1), Kokkos::ALL() );
+            WorkViewType  work(workView.data() + sizePerPoint*team_member.team_rank(), sizePerPoint);
+            Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_GRAD>::getValues( output, input, work, this->vinv_ );
+          });
+          break;
+          case OPERATOR_CURL:
+          Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (ordinal_type& pt) {
+            auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), range_type(pt,pt+1), Kokkos::ALL() );
+            const auto input  = Kokkos::subview( inputPoints,                 range_type(pt,pt+1), Kokkos::ALL() );
+            WorkViewType  work(workView.data() + sizePerPoint*team_member.team_rank(), sizePerPoint);
+            Impl::Basis_HGRAD_QUAD_Cn_FEM::Serial<OPERATOR_CURL>::getValues( output, input, work, this->vinv_ );
+          });
+          break;
+        default: {}
     }
   }
 

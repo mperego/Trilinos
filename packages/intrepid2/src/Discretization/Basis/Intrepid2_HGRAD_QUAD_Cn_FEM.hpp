@@ -59,6 +59,7 @@ namespace Intrepid2 {
                         Kokkos::DynRankView<outputValueValueType,outputValueProperties...> outputValues,
                   const Kokkos::DynRankView<inputPointValueType, inputPointProperties...>  inputPoints,
                   const Kokkos::DynRankView<vinvValueType,       vinvProperties...>        vinv,
+                  const ordinal_type order,
                   const EOperator operatorType);
 
 
@@ -181,11 +182,11 @@ namespace Intrepid2 {
                                             operatorType);
     }
 
-    KOKKOS_INLINE_FUNCTION
     virtual void 
     getScratchSpaceSize(      ordinal_type& perTeamSpaceSize,
                               ordinal_type& perThreadSpaceSize,
-                        const PointViewType inputPoints) const override;
+                        const PointViewType inputPointsconst,
+                        const EOperator operatorType = OPERATOR_VALUE) const override;
 
     KOKKOS_INLINE_FUNCTION
     virtual void 

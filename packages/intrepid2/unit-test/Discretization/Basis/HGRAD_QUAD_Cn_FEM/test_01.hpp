@@ -580,7 +580,7 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
         auto quadBasisPtr_device = copy_virtual_class_to_device<DeviceType,QuadBasisType>(*quadBasisPtr);
         auto quadBasisRawPtr_device = quadBasisPtr_device.get();
         int perThreadSpaceSize(0), perTeamSpaceSize(0);
-        quadBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,quadNodes);// = 3*(order+1)*get_dimension_scalar(quadNodes)*sizeof(PointValueType);
+        quadBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,quadNodes);
         int scratch_space_level =1;
         Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", numCells);
         Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
