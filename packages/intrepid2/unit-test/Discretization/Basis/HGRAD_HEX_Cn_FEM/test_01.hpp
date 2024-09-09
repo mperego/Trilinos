@@ -519,32 +519,26 @@ int HGRAD_HEX_Cn_FEM_Test01(const bool verbose) {
 
         auto hexBasisPtr_device = copy_virtual_class_to_device<DeviceType,HexBasisType>(*hexBasisPtr);
         auto hexBasisRawPtr_device = hexBasisPtr_device.get();
+
+        int scratch_space_level =1; //level 0 memory is too small
+
+        auto functor = KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
+            auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
+            hexBasisRawPtr_device->getValues(vals_cell, hexNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
+          };
+
+        const int vectorSize = getVectorSizeForHierarchicalParallelism<PointValueType>();
+        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,vectorSize);
+        //Get the required size of the scratch space per team and per thread.
         int perThreadSpaceSize(0), perTeamSpaceSize(0);
         hexBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,hexNodes);
-        int scratch_space_level =1;
-        Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", numCells);
-        Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
-        
-        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,get_dimension_scalar(hexNodes));
         teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
-        Kokkos::parallel_for (teamPolicy,
-                 KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
-                 //typename DeviceType::execution_space::scratch_memory_space scratch;
-                 auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
-            teamSize(team_member.league_rank()) = team_member.team_size();
-            leagueSize(team_member.league_rank()) = team_member.league_size();
-            hexBasisRawPtr_device->getValues(vals_cell, hexNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
-          });
+
+        Kokkos::parallel_for (teamPolicy,functor);
           
         auto vals_host = Kokkos::create_mirror_view(vals);
         Kokkos::deep_copy(vals_host, vals);
-        auto teamSize_host = Kokkos::create_mirror_view(teamSize);
-        Kokkos::deep_copy(teamSize_host, teamSize);
-        auto leagueSize_host = Kokkos::create_mirror_view(leagueSize);
-        Kokkos::deep_copy(leagueSize_host, leagueSize);
         for (ordinal_type ic = 0; ic < numCells; ++ic) {
-          if (ic<10)
-          *outStream << " At cell" << ic << ", league size: " << leagueSize_host(ic) << ", team size: " << teamSize_host(ic) << std::endl;
           for (ordinal_type i = 0; i < numFields; ++i) {
             for (ordinal_type j = 0; j < numPoints; ++j) {
 

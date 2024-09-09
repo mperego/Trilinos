@@ -56,23 +56,26 @@ namespace Intrepid2 {
           Kokkos::fill_random(inputPointsViewToUseRandom, random, 1.0);
           
 
-        auto tetBasisPtr_device = copy_virtual_class_to_device<DeviceType,TetBasisType>(*tetBasisPtr);
-        auto tetBasisRawPtr_device = tetBasisPtr_device.get();
-        int perThreadSpaceSize(0), perTeamSpaceSize(0);
-        tetBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,inputPoints);
-        int scratch_space_level =1;
-        Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", ncells);
-        Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", ncells);
-        
-        Kokkos::TeamPolicy<DeviceSpaceType> teamPolicy(ncells, Kokkos::AUTO,get_dimension_scalar(inputPoints));
-        teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
-        Kokkos::parallel_for (teamPolicy,
-                 KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<DeviceSpaceType>::member_type team_member) {
-                 auto valsACell = Kokkos::subview(outputValuesA, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
-            teamSize(team_member.league_rank()) = team_member.team_size();
-            leagueSize(team_member.league_rank()) = team_member.league_size();
-            tetBasisRawPtr_device->getValues(valsACell, inputPoints, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
-          });
+          { // evaluation using parallel loop over cell
+            auto tetBasisPtr_device = copy_virtual_class_to_device<DeviceType,TetBasisType>(*tetBasisPtr);
+            auto tetBasisRawPtr_device = tetBasisPtr_device.get();
+
+            int scratch_space_level =1;
+            auto functor = KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
+                auto valsACell = Kokkos::subview(outputValuesA, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
+                tetBasisRawPtr_device->getValues(valsACell, inputPoints, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
+              };
+
+            const int vectorSize = getVectorSizeForHierarchicalParallelism<PointValueType>();
+            Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(ncells, Kokkos::AUTO,vectorSize);
+            //Get the required size of the scratch space per team and per thread.
+            int perThreadSpaceSize(0), perTeamSpaceSize(0);
+            tetBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,inputPoints);
+            teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
+
+            Kokkos::parallel_for (teamPolicy,functor);
+          }
+
 
           // evaluation using high level interface
           tetBasisPtr->getValues(outputValuesB, inputPoints, OPERATOR_VALUE);

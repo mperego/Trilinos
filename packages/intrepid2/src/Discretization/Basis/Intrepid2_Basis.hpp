@@ -379,6 +379,18 @@ using HostBasisPtr = BasisPtr<typename Kokkos::HostSpace::device_type, OutputTyp
       }
     }
 
+
+    /** \brief  Return the size of the scratch space, in bytes, needed for using the team-level implementation of getValues.
+
+        Warning, <var>inputPoints</var> is only used to deduce the type of the points where to evaluate basis functions.
+        The rank of </var>inputPoints</var> and its size are not relevant, however, 
+        when using DFAD types, </var>inputPoints</var> cannot be empty and has to be allocated, 
+        otherwise the size of the scracth space needed won't be deduced correctly.
+
+        \param  space             [in]  - inputPoints
+        \param  perTeamSpaceSize  [out] - size of the scratch space needed per team
+        \param  perThreadeSize    [out] - size of the scratch space beeded per thread
+    */
     virtual
     void getScratchSpaceSize(       ordinal_type& perTeamSpaceSize,
                                     ordinal_type& perThreadSpaceSize,
@@ -389,7 +401,19 @@ using HostBasisPtr = BasisPtr<typename Kokkos::HostSpace::device_type, OutputTyp
     }
 
 
+    /** \brief  Team-level evaluation of a FEM basis on a <strong>reference cell</strong>.
 
+        Returns values of <var>operatorType</var> acting on FEM basis functions for a set of
+        points in the <strong>reference cell</strong> for which the basis is defined.
+
+        \param  space             [in]  - execution space instance
+        \param  outputValues      [out] - variable rank array with the basis values
+        \param  inputPoints       [in]  - rank-2 array (P,D) with the evaluation points
+        \param  operatorType      [in]  - the operator acting on the basis functions
+
+        \remark This function is supposed to be called within a TeamPolicy kernel. 
+                The size of the required scratch space is determined by the getScratchSpaceSize function.
+    */
     KOKKOS_INLINE_FUNCTION
     virtual
     void getValues(       OutputViewType /* outputValues */,

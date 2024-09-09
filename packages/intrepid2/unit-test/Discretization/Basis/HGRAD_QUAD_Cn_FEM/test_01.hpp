@@ -575,44 +575,38 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
         // Check VALUE of basis functions: resize vals to rank-2 container:
         const ordinal_type numCells = 200;
         DynRankViewOutValueType ConstructWithLabelOutView(vals, numCells, numFields, numPoints);
-        //quadBasis.getValues(space, vals, quadNodes, OPERATOR_VALUE);
 
         auto quadBasisPtr_device = copy_virtual_class_to_device<DeviceType,QuadBasisType>(*quadBasisPtr);
         auto quadBasisRawPtr_device = quadBasisPtr_device.get();
-        int perThreadSpaceSize(0), perTeamSpaceSize(0);
-        quadBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,quadNodes);
-        int scratch_space_level =1;
-        Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", numCells);
-        Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
 
-        const int vectorSize = getVectorSizeForHierarchicalParallelism<PointValueType>();
+        int scratch_space_level =1; //level 0 memory is too small
+
         auto functor = KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
-                 //typename DeviceType::execution_space::scratch_memory_space scratch;
-                 auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
-            teamSize(team_member.league_rank()) = team_member.team_size();
-            leagueSize(team_member.league_rank()) = team_member.league_size();
+            auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
             quadBasisRawPtr_device->getValues(vals_cell, quadNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
           };
 
+        const int vectorSize = getVectorSizeForHierarchicalParallelism<PointValueType>();
         Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,vectorSize);
 
         ordinal_type team_size = teamPolicy.team_size_recommended(functor, Kokkos::ParallelForTag());
-        std::cout << "Recommended team size: " << team_size << ", Requested team size: " << numPoints <<std::endl;
+        //The requested team size doesn't have to be numPoints, and it depends on the implementation of getVlues.
+        //Should we have a function that returns the requested team size? 
+        std::cout << "Max Recommended team size: " << team_size << ", Requested team size: " << numPoints <<std::endl;
         team_size = std::min(team_size, numPoints);
         
         teamPolicy = Kokkos::TeamPolicy<typename DeviceType::execution_space>(numCells, team_size,vectorSize);
+
+        //Get the required size of the scratch space per team and per thread.
+        int perThreadSpaceSize(0), perTeamSpaceSize(0);
+        quadBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,quadNodes);
         teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
+
         Kokkos::parallel_for (teamPolicy,functor);
           
         auto vals_host = Kokkos::create_mirror_view(vals);
         Kokkos::deep_copy(vals_host, vals);
-        auto teamSize_host = Kokkos::create_mirror_view(teamSize);
-        Kokkos::deep_copy(teamSize_host, teamSize);
-        auto leagueSize_host = Kokkos::create_mirror_view(leagueSize);
-        Kokkos::deep_copy(leagueSize_host, leagueSize);
         for (ordinal_type ic = 0; ic < numCells; ++ic) {
-          if (ic<10)
-          *outStream << " At cell" << ic << ", league size: " << leagueSize_host(ic) << ", team size: " << teamSize_host(ic) << std::endl;
           for (ordinal_type i = 0; i < numFields; ++i) {
             for (ordinal_type j = 0; j < numPoints; ++j) {
 
