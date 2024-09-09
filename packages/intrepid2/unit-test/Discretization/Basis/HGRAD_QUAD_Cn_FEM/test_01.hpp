@@ -584,17 +584,25 @@ int HGRAD_QUAD_Cn_FEM_Test01(const bool verbose) {
         int scratch_space_level =1;
         Kokkos::DynRankView<int, DeviceType> teamSize("teamSize", numCells);
         Kokkos::DynRankView<int, DeviceType> leagueSize("leagueSize", numCells);
-        
-        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,get_dimension_scalar(quadNodes));
-        teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
-        Kokkos::parallel_for (teamPolicy,
-                 KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
+
+
+        auto functor = KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
                  //typename DeviceType::execution_space::scratch_memory_space scratch;
                  auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
             teamSize(team_member.league_rank()) = team_member.team_size();
             leagueSize(team_member.league_rank()) = team_member.league_size();
             quadBasisRawPtr_device->getValues(vals_cell, quadNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
-          });
+          };
+
+        Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,get_dimension_scalar(quadNodes));
+
+        ordinal_type team_size = teamPolicy.team_size_recommended(functor, Kokkos::ParallelForTag());
+        std::cout << "Recommended team size: " << team_size << ", Requested team size: " << numPoints <<std::endl;
+        team_size = std::min(team_size, numPoints);
+        
+        teamPolicy = Kokkos::TeamPolicy<typename DeviceType::execution_space>(numCells, team_size,get_dimension_scalar(quadNodes));
+        teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
+        Kokkos::parallel_for (teamPolicy,functor);
           
         auto vals_host = Kokkos::create_mirror_view(vals);
         Kokkos::deep_copy(vals_host, vals);
