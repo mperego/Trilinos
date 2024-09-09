@@ -212,7 +212,6 @@ namespace Intrepid2 {
                                             operatorType);
     }
 
-    KOKKOS_INLINE_FUNCTION
     virtual void 
     getScratchSpaceSize(      ordinal_type& perTeamSpaceSize,
                               ordinal_type& perThreadSpaceSize,

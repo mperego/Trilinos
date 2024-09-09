@@ -59,7 +59,6 @@ namespace Intrepid2 {
                         Kokkos::DynRankView<outputValueValueType,outputValueProperties...> outputValues,
                   const Kokkos::DynRankView<inputPointValueType, inputPointProperties...>  inputPoints,
                   const Kokkos::DynRankView<vinvValueType,       vinvProperties...>        vinv,
-                  const ordinal_type order,
                   const EOperator operatorType);
 
 
