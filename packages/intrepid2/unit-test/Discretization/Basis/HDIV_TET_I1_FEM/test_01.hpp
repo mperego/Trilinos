@@ -291,12 +291,22 @@ namespace Intrepid2 {
           
           auto tetBasisPtr_device = copy_virtual_class_to_device<DeviceType,Basis_HDIV_TET_I1_FEM<DeviceType,outputValueType,pointValueType>>(*tetBasisPtr);
           auto tetBasisRawPtr_device = tetBasisPtr_device.get();
-          Kokkos::parallel_for (Kokkos::TeamPolicy<typename DeviceType::execution_space> (numCells, Kokkos::AUTO).set_scratch_size(1, Kokkos::PerTeam(numFields*numPoints)),
-                 KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
-                          typename DeviceSpaceType::scratch_memory_space scratch;
-                 auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
-            tetBasisRawPtr_device->getValues(vals_cell, tetNodes, OPERATOR_VALUE, team_member, scratch);
-          });
+
+          int scratch_space_level=0;
+
+          auto functor = KOKKOS_LAMBDA (typename Kokkos::TeamPolicy<typename DeviceType::execution_space>::member_type team_member) {
+            auto vals_cell = Kokkos::subview(vals, team_member.league_rank(), Kokkos::ALL(), Kokkos::ALL(), Kokkos::ALL());
+            tetBasisRawPtr_device->getValues(vals_cell, tetNodes, OPERATOR_VALUE, team_member, team_member.team_scratch(scratch_space_level));
+          };
+
+          const int vectorSize = getVectorSizeForHierarchicalParallelism<pointValueType>();
+          Kokkos::TeamPolicy<typename DeviceType::execution_space> teamPolicy(numCells, Kokkos::AUTO,vectorSize);
+          //Get the required size of the scratch space per team and per thread.
+          int perThreadSpaceSize(0), perTeamSpaceSize(0);
+          tetBasisPtr->getScratchSpaceSize(perTeamSpaceSize,perThreadSpaceSize,tetNodes);
+          teamPolicy.set_scratch_size(scratch_space_level, Kokkos::PerTeam(perTeamSpaceSize), Kokkos::PerThread(perThreadSpaceSize));
+
+          Kokkos::parallel_for (teamPolicy,functor);          
 
           const auto vals_host = Kokkos::create_mirror_view(typename HostSpaceType::memory_space(), vals);
           Kokkos::deep_copy(vals_host, vals);

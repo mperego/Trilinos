@@ -262,6 +262,10 @@ namespace Intrepid2 {
       const typename DT::execution_space::scratch_memory_space & scratchStorage, 
       const ordinal_type subcellDim,
       const ordinal_type subcellOrdinal) const {
+
+      INTREPID2_TEST_FOR_ABORT( !((subcellDim == -1) && (subcellOrdinal == -1)),
+        ">>> ERROR: (Intrepid2::Basis_HGRAD_QUAD_Cn_FEM::getValues), The capability of selecting subsets of basis functions has not been implemented yet.");
+
       const int numPoints = inputPoints.extent(0);
       using ScalarType = typename ScalarTraits<typename PointViewType::value_type>::scalar_type;
       using WorkViewType = Kokkos::DynRankView< ScalarType,typename DT::execution_space::scratch_memory_space,Kokkos::MemoryTraits<Kokkos::Unmanaged> >;
