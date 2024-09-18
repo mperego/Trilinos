@@ -1245,8 +1245,8 @@ Piro::PerformHDSAAnalysis(
     const std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >& x_diff_at_samples,
     const std::vector<Teuchos::RCP< Thyra::VectorBase<double> > >& p_samples)
 {
-  std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): " << x_opt->norm_2() << std::endl;
-auto analysisParams = piroParams.sublist("Analysis");
+
+  auto analysisParams = piroParams.sublist("Analysis");
   int analysisVerbosity = analysisParams.get<int>("Output Level",2);
 
   RCP<std::ostream> out;
@@ -1254,8 +1254,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     out = Teuchos::VerboseObjectBase::getDefaultOStream();
   else // no output
     out = Teuchos::rcp(new Teuchos::oblackholestream());
-
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
 #ifdef HAVE_PIRO_ROL
 
   using std::string;
@@ -1271,7 +1269,7 @@ auto analysisParams = piroParams.sublist("Analysis");
     std::ostringstream ss; ss << "Parameter Vector Index " << i;
     p_indices[i] = hdsaParams.get<int>(ss.str(), i);
   }
-   std::cout << __FILE__ << ": " << __LINE__ << ", p_indices[" << num_parameters-1 << "] = " << p_indices[num_parameters-1] <<  ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
+
 #ifdef HAVE_PIRO_NOX
   auto piroNOXSolver = Teuchos::rcp_dynamic_cast<Piro::NOXSolver<double>>(Teuchos::rcpFromRef(piroModel));
   if(Teuchos::nonnull(piroNOXSolver)) {
@@ -1302,7 +1300,7 @@ auto analysisParams = piroParams.sublist("Analysis");
         std::endl << "Piro::PerformROLSteadyAnalysis, ERROR: " <<
         "only Piro::NOXSolver is currently supported for piroModel"<<std::endl);
   }
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
+
   //hdsaParams.validateParameters(*Piro::getValidPiroAnalysisHDSAParameters(num_parameters),0);
 
   int g_index = hdsaParams.get<int>("Response Vector Index", 0);  
@@ -1315,24 +1313,20 @@ auto analysisParams = piroParams.sublist("Analysis");
       p_names.push_back(names_array[k]);
     }
   }
-   std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
 
   //set names of parameters in the "Optimization Status" sublist
   piroParams.sublist("Optimization Status").set("Parameter Names", Teuchos::rcpFromRef(p_names));
 
   if(hdsaParams.isParameter("Objective Recovery Value"))
     piroParams.sublist("Optimization Status").set("Objective Recovery Value", hdsaParams.get<double>("Objective Recovery Value"));
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   Teuchos::RCP<Thyra::VectorSpaceBase<double> const> p_space = model->get_p_space(0);
   p = model->getNominalValues().get_p(0)->clone_v();
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   //Teuchos::RCP<Thyra::VectorSpaceBase<double> const> p_space;
   Teuchos::RCP<Thyra::VectorSpaceBase<double> const> x_space = model->get_x_space();
 
   Teuchos::RCP<Thyra::VectorBase<double>> x = Thyra::createMember(x_space);
   Thyra::copy(*model->getNominalValues().get_x(), x.ptr());
 
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   Teuchos::EVerbosityLevel analysisVerbosityLevel;
   switch(analysisVerbosity) {
     case 1: analysisVerbosityLevel= Teuchos::VERB_LOW; break;
@@ -1340,26 +1334,21 @@ auto analysisParams = piroParams.sublist("Analysis");
     case 3: analysisVerbosityLevel= Teuchos::VERB_HIGH; break;
     case 4: analysisVerbosityLevel= Teuchos::VERB_EXTREME; break;
     default: analysisVerbosityLevel= Teuchos::VERB_NONE;
-  }  
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
+  } 
 
   Piro::ThyraProductME_Objective_SimOpt<double> obj(model, g_index, piroParams, analysisVerbosityLevel, observer);
-   std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   Piro::ThyraProductME_Constraint_SimOpt<double> constr(model, adjointModel, piroParams, analysisVerbosityLevel, observer);
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   constr.setSolveParameters(hdsaParams.sublist("HDSA Options"));
 
   if(hdsaParams.isParameter("Use NOX Solver") && hdsaParams.get<bool>("Use NOX Solver"))
     constr.setExternalSolver(Teuchos::rcpFromRef(piroModel));
   constr.setNumResponses(piroSSSolver->num_g());
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
 
   ROL::Ptr<ROL::Objective_SimOpt<double> > obj_ptr = ROL::makePtrFromRef(obj);
   ROL::Ptr<ROL::Constraint_SimOpt<double> > constr_ptr = ROL::makePtrFromRef(constr);
 
   ROL::Ptr<ROL::Vector<double> > rol_p_ptr = ROL::makePtr<ROL::ThyraVector<double>>(p);
   ROL::Ptr<ROL::Vector<double> > rol_x_ptr = ROL::makePtr<ROL::ThyraVector<double>>(x);
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   int seed = hdsaParams.get<int>("Seed For Thyra Randomize", 42);
 
   //! set initial guess (or use the one provided by the Model Evaluator)
@@ -1377,9 +1366,6 @@ auto analysisParams = piroParams.sublist("Analysis");
               std::endl << "Piro::PerformROLSteadyAnalysis, ERROR: " <<
               "Parameter Initial Guess Type \"" << init_guess_type << "\" is not Known.\nValid options are: \"Parameter Scalar Guess\", \"Uniform Vector\" and \"Random Vector\""<<std::endl);
   }
-
-   std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
-
   //! test thyra implementation of ROL vector
   if(hdsaParams.get<bool>("Test Vector", false)) {
     Teuchos::RCP<Thyra::VectorBase<double> > rand_vec_x = p->clone_v();
@@ -1510,13 +1496,11 @@ auto analysisParams = piroParams.sublist("Analysis");
 
     }
   }
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   if(analysisVerbosity >= 3) {
     *out << "\nPiro PerformAnalysis: HDSA options:" << std::endl;
     hdsaParams.sublist("HDSA Options").print(*out);
     *out << std::endl;
   }
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   bool useIdentityPriorEllOp = true;
   int prior_ell_reponse_index = -1;
   if(hdsaParams.isSublist("Prior Elliptic Operator")) {
@@ -1525,7 +1509,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     if(operatorType == "Hessian Of Response") {
       useIdentityPriorEllOp = false;
       prior_ell_reponse_index = operatorList.get<int>("Response Index");
-      std::cout << __FILE__ << ": " << __LINE__ << " " << prior_ell_reponse_index <<std::endl;
     }
     else if (operatorType == "Identity")
       useIdentityPriorEllOp = true;
@@ -1545,7 +1528,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     if(operatorType == "Hessian Of Response") {
       useIdentityPriorMassOp = false;
       prior_mass_reponse_index = operatorList.get<int>("Response Index");
-      std::cout << __FILE__ << ": " << __LINE__ << " " << prior_mass_reponse_index <<std::endl;
     }
     else if (operatorType == "Identity")
       useIdentityPriorMassOp = true;
@@ -1565,7 +1547,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     if(operatorType == "Hessian Of Response") {
       useIdentityPriorMassCholOp = false;
       prior_mass_chol_reponse_index = operatorList.get<int>("Response Index");
-      std::cout << __FILE__ << ": " << __LINE__ << " " << prior_mass_chol_reponse_index <<std::endl;
     }
     else if (operatorType == "Identity")
       useIdentityPriorMassCholOp = true;
@@ -1577,8 +1558,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     }
   }
 
-
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   bool useIdentityStateEllOp = true;
   int state_ell_reponse_index = -1;
   if(hdsaParams.isSublist("State Elliptic Operator")) {
@@ -1587,7 +1566,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     if(operatorType == "Hessian Of Response") {
       useIdentityStateEllOp = false;
       state_ell_reponse_index = operatorList.get<int>("Response Index");
-      std::cout << __FILE__ << ": " << __LINE__ << " " << state_ell_reponse_index <<std::endl;
     }
     else if (operatorType == "Identity")
       useIdentityStateEllOp = true;
@@ -1598,7 +1576,7 @@ auto analysisParams = piroParams.sublist("Analysis");
           "\"Identity\" and \"Hessian Of Response\""<<std::endl);
     }
   }
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
+
   bool useIdentityStateMassOp = true;
   int state_mass_reponse_index = -1;
   if(hdsaParams.isSublist("State Mass Operator")) {
@@ -1607,7 +1585,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     if(operatorType == "Hessian Of Response") {
       useIdentityStateMassOp = false;
       state_mass_reponse_index = operatorList.get<int>("Response Index");
-      std::cout << __FILE__ << ": " << __LINE__ << " " << state_mass_reponse_index <<std::endl;
     }
     else if (operatorType == "Identity")
       useIdentityStateMassOp = true;
@@ -1618,15 +1595,13 @@ auto analysisParams = piroParams.sublist("Analysis");
           "\"Identity\" and \"Hessian Of Response\""<<std::endl);
     }
   }
-   std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
+
   Teuchos::RCP<Thyra::VectorBase<double> > scaling_vector_p = Teuchos::null;
   Teuchos::RCP<const Thyra::LinearOpBase<double> > priorEllOp(Teuchos::null), invPriorEllOp(Teuchos::null), invEllOp(Teuchos::null), massOp(Teuchos::null), priorMassOp(Teuchos::null), invPriorMassOp(Teuchos::null), priorMassCholOp(Teuchos::null);
 
   #ifdef HAVE_PIRO_TEKO
   {
-     std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
     Teuchos::RCP<const Piro::ProductModelEvaluator<double>> model_PME = getProductModelEvaluator(model);
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
     {
       if(analysisVerbosity > 2)
         *out << "\nPiro::PerformHDSAAnalysis: Start the computation of the Prior Elliptic Operator" << std::endl;
@@ -1649,7 +1624,6 @@ auto analysisParams = piroParams.sublist("Analysis");
         }
         priorEllOp = bH;
         invPriorEllOp = Teko::createBlockUpperTriInverseOp(bH, diag, "invPriorEllOp");
-        std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
       }
 
       if(analysisVerbosity > 2)
@@ -1678,7 +1652,6 @@ auto analysisParams = piroParams.sublist("Analysis");
         }
         priorMassOp = bH;
         invPriorMassOp = Teko::createBlockUpperTriInverseOp(bH, diag, "invPriorMassOp");
-        std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
       }
 
       if(analysisVerbosity > 2)
@@ -1701,8 +1674,6 @@ auto analysisParams = piroParams.sublist("Analysis");
         *out << "Piro::PerformHDSAAnalysis: End of the computation of the Prior Mass Cholesky Operator" << std::endl;
     }
 
-
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
     {
       if(analysisVerbosity > 2)
         *out << "\nPiro::PerformHDSAAnalysis: Start the computation of the State Elliptic Operator" << std::endl;
@@ -1717,13 +1688,12 @@ auto analysisParams = piroParams.sublist("Analysis");
         auto linOp = Teuchos::rcp_dynamic_cast<Thyra::LinearOpWithSolveBase<double>>(
         Teuchos::rcp_const_cast<Thyra::LinearOpBase<double>>(H));
         invEllOp = Thyra::nonconstInverse(linOp);
-        std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
       }
 
       if(analysisVerbosity > 2)
         *out << "Piro::PerformHDSAAnalysis: End of the computation of the State Elliptic Operator" << std::endl;
     }
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
+
     {
       if(analysisVerbosity > 2)
         *out << "\nPiro::PerformHDSAAnalysis: Start the computation of the State Mass Operator" << std::endl;
@@ -1738,7 +1708,6 @@ auto analysisParams = piroParams.sublist("Analysis");
       if(analysisVerbosity > 2)
         *out << "Piro::PerformHDSAAnalysis: End of the computation of the State Mass Operator" << std::endl;
     }
-     std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   }
 
 #else
@@ -1751,7 +1720,6 @@ auto analysisParams = piroParams.sublist("Analysis");
   // Run Algorithm
   Teuchos::RCP<ROL::BoundConstraint<double> > boundConstraint;
   bool boundConstrained = hdsaParams.get<bool>("Bound Constrained", false);
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
   if(boundConstrained) {
     Teuchos::RCP<Thyra::VectorBase<double>> p_lo = model->getLowerBounds().get_p(0)->clone_v();
     Teuchos::RCP<Thyra::VectorBase<double>> p_up = model->getUpperBounds().get_p(0)->clone_v();
@@ -1767,24 +1735,17 @@ auto analysisParams = piroParams.sublist("Analysis");
     Teuchos::RCP<Teuchos::FancyOStream> rolOutput = Teuchos::getFancyOStream(Teuchos::rcpFromRef(rolOutputStream));
     rolOutput->setOutputToRootOnly(0);
 
-    //Piro::Model_Discrepancy_Interface<double> piroDiscrepancyInterface(obj_ptr, constr_ptr, rol_x_ptr, rol_p_ptr, rol_x_ptr, rol_p_ptr);
-    std::cout << __FILE__ << ": " << __LINE__ <<std::endl;   
- std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): "  << x_opt->norm_2() << std::endl;
 
     //fix this!
-    auto p_opt_prod = createProductVector(p_opt);
-    std::cout << __FILE__ << ": " << __LINE__ <<std::endl; 
+    auto p_opt_prod = createProductVector(p_opt); 
   
 
     ROL::Ptr<ROL::Vector<double> > rol_opt_p_ptr = ROL::makePtr<ROL::ThyraVector<double>>(p_opt_prod);
     ROL::Ptr<ROL::Vector<double> > rol_opt_x_ptr = ROL::makePtr<ROL::ThyraVector<double>>(x_opt);
-        std::cout << __FILE__ << ": " << __LINE__ << ", norm(u_opt): " << rol_opt_x_ptr->norm() << std::endl;
-
 
     HDSA::Ptr<HDSA::MD_Opt_Prob_Interface<double> > opt_prob_interface = HDSA::makePtr<HDSA::MD_ROL_Opt_Prob_Interface<double> >(obj_ptr, constr_ptr, rol_x_ptr, rol_p_ptr);
     HDSA::Ptr<HDSA::Random_Number_Generator<double> > random_number_generator = HDSA::makePtr<HDSA::Random_Number_Generator<double> >(42);
     HDSA::Ptr<Piro::HDSA_MD_ROL_Data_Interface<double> > data_interface = HDSA::makePtr<Piro::HDSA_MD_ROL_Data_Interface<double> >(rol_opt_x_ptr, rol_opt_p_ptr);
-    std::cout << __FILE__ << ": " << __LINE__ << ", x_opt: " << rol_opt_x_ptr->norm() << ", p_opt" << rol_opt_p_ptr->norm() <<  std::endl;
     for (int k=0; k<p_samples.size(); k++) {
       auto p_sample = createProductVector(p_samples[k]);
       ROL::Ptr<ROL::Vector<double> > rol_p_samples_ptr = ROL::makePtr<ROL::ThyraVector<double>>(p_sample);
@@ -1837,7 +1798,6 @@ auto analysisParams = piroParams.sublist("Analysis");
     auto c_ptr = rol_x_ptr->clone();
     double tol = 1e-5;
     constr_ptr->solve(*c_ptr,*rol_x_ptr,*rol_p_ptr,tol);
-    std::cout << __FILE__ << ": " << __LINE__ << ", p_opt: " << rol_opt_p_ptr->norm() << ", updated p_opt: " << z_update_rol.norm() << ", x: " << rol_x_ptr->norm() <<  std::endl;
 
    if(Teuchos::nonnull(observer)) {
     const ROL::ThyraVector<double>  & thyra_x = dynamic_cast<const ROL::ThyraVector<double>&>(*rol_x_ptr);

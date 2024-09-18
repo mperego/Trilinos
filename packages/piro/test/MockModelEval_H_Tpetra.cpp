@@ -721,8 +721,7 @@ void MockModelEval_H_Tpetra::evalModelImpl(
           if(gid < x_map->getGlobalNumElements()-1) {
             indices.push_back(gid+1);
             vals.push_back(-s/h+m*h/6);
-          }           
-           std::cout << gid << " " << indices[0] << " " << indices.size() <<std::endl; 
+          }
           H_pp_out_crs->replaceGlobalValues(gid, indices, vals);
         }
       }
@@ -732,7 +731,6 @@ void MockModelEval_H_Tpetra::evalModelImpl(
       matWriter.writeSparseFile("H_100", H_pp_out_crs);
 
       if(probList_->sublist("Hessian").sublist("Response 1").sublist("Parameter 0").isSublist("H_pp Solver")) {
-        std::cout << "I'm here " << __FILE__ << ": "<< __LINE__ <<std::endl;
         auto pl = probList_->sublist("Hessian").sublist("Response 1").sublist("Parameter 0").sublist("H_pp Solver");
         H_pp_out->initializeSolver(Teuchos::rcpFromRef(pl));
       }
@@ -774,8 +772,7 @@ void MockModelEval_H_Tpetra::evalModelImpl(
           if(gid < x_map->getGlobalNumElements()-1) {
             indices.push_back(gid+1);
             vals.push_back(h/6);
-          }           
-           std::cout << gid << " " << indices[0] << " " << indices.size() <<std::endl; 
+          }
           H_pp_out_crs->replaceGlobalValues(gid, indices, vals);
         }
       }
@@ -785,7 +782,6 @@ void MockModelEval_H_Tpetra::evalModelImpl(
       matWriter.writeSparseFile("H_200", H_pp_out_crs);
 
       if(probList_->sublist("Hessian").sublist("Response 2").sublist("Parameter 0").isSublist("H_pp Solver")) {
-        std::cout << "I'm here " << __FILE__ << ": "<< __LINE__ <<std::endl;
         auto pl = probList_->sublist("Hessian").sublist("Response 2").sublist("Parameter 0").sublist("H_pp Solver");
         H_pp_out->initializeSolver(Teuchos::rcpFromRef(pl));
       }
@@ -832,7 +828,6 @@ void MockModelEval_H_Tpetra::evalModelImpl(
           indices.push_back(gid);
           vals.push_back(a[gid]);
        
-          std::cout << gid << " " << indices[0] << " " << indices.size() <<std::endl; 
           H_pp_out_crs->replaceGlobalValues(gid, indices, vals);
         }
       }
@@ -842,7 +837,6 @@ void MockModelEval_H_Tpetra::evalModelImpl(
       matWriter.writeSparseFile("H_300", H_pp_out_crs);
 
       if(probList_->sublist("Hessian").sublist("Response 3").sublist("Parameter 0").isSublist("H_pp Solver")) {
-        std::cout << "I'm here " << __FILE__ << ": "<< __LINE__ <<std::endl;
         auto pl = probList_->sublist("Hessian").sublist("Response 3").sublist("Parameter 0").sublist("H_pp Solver");
         H_pp_out->initializeSolver(Teuchos::rcpFromRef(pl));
       }
@@ -893,9 +887,7 @@ void MockModelEval_H_Tpetra::evalModelImpl(
           }        
           
           H_pp_out_crs->replaceGlobalValues(gid, indices, vals);
-          std::cout << __FILE__ << " " << __LINE__ << " " << gid <<std::endl;
         }
-        std::cout << __FILE__ << " " << __LINE__ << " " << nodeNumElements <<std::endl;
       }
       H_pp_out_crs->fillComplete();
       Tpetra::MatrixMarket::Writer< Tpetra::CrsMatrix<> >   matWriter;
@@ -904,7 +896,6 @@ void MockModelEval_H_Tpetra::evalModelImpl(
       if(probList_->sublist("Hessian").sublist("Response 4").sublist("Parameter 1").isSublist("H_pp Solver")) {
         auto pl = probList_->sublist("Hessian").sublist("Response 4").sublist("Parameter 1").sublist("H_pp Solver");
         H_pp_out->initializeSolver(Teuchos::rcpFromRef(pl));
-        std::cout << __FILE__ << ": " << __LINE__ << std::endl;
       }
       
     }
@@ -961,7 +952,6 @@ void MockModelEval_H_Tpetra::evalModelImpl(
       if(probList_->sublist("Hessian").sublist("Response 5").sublist("Parameter 1").isSublist("H_pp Solver")) {
         auto pl = probList_->sublist("Hessian").sublist("Response 5").sublist("Parameter 1").sublist("H_pp Solver");
         H_pp_out->initializeSolver(Teuchos::rcpFromRef(pl));
-        std::cout << __FILE__ << ": " << __LINE__ << std::endl;
       }
     }
   }

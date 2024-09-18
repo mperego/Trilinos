@@ -139,18 +139,14 @@ public:
       ROL_TEST_FOR_EXCEPTION(true, std::logic_error,
           "Piro::ThyraProductME_Objective: DgDx does support neither DERIV_MV_JACOBIAN_FORM nor DERIV_MV_GRADIENT_FORM forms");
     }
-std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
 
     outArgs.set_DgDx(g_index_, Thyra::ModelEvaluatorBase::DerivativeMultiVector<Real>(thyra_dgdx.getVector(), dgdx_orient));
-std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
 
     thyra_model_->evalModel(inArgs, outArgs);
-std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
 
     if(!objectiveStr_.isValueValid_) {
       objectiveStr_.value_ = ::Thyra::get_ele(*thyra_g,0);
-      std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
-
+      
       //set value to (large) recovery value if solver did not converge
       if(useObjectiveRecoveryValue_ && optParams_.isParameter("State Solve Converged") && !optParams_.get<bool>("State Solve Converged")) {
         if(verbosityLevel_ >= Teuchos::VERB_LOW)
@@ -160,10 +156,8 @@ std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
       
       objectiveStr_.isValueValid_ = true;
     }
-std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
 
     objectiveStr_.gradient1_ptr_->set(g);
-std::cout << __FILE__ << ": " << __LINE__ << " "  <<std::endl;
 
     objectiveStr_.isGradient1Valid_ = true;
   }

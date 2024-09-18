@@ -974,7 +974,6 @@ ProductModelEvaluator<Real>::block_diagonal_hessian_22(Teuchos::RCP<Thyra::Linea
 
     Thyra::ModelEvaluatorBase::InArgs<Real> inArgs = thyra_model_->createInArgs();
 
- 
     //Teuchos::RCP<const  Thyra::ProductVectorBase<Real> > thyra_prodvec_p = Teuchos::rcp_dynamic_cast<const Thyra::ProductVectorBase<Real>>(thyra_p.getVector());
     //inArgs.set_p(p_index, thyra_prodvec_p->getVectorBlock(0));
     inArgs.set_p(p_index, thyra_p.getVector());
@@ -986,9 +985,8 @@ ProductModelEvaluator<Real>::block_diagonal_hessian_22(Teuchos::RCP<Thyra::Linea
 
     H = thyra_model_->create_hess_g_pp(g_idx, p_index, p_index);
     outArgs.set_hess_g_pp(g_idx, p_index, p_index, H);
-    std::cout << __FILE__ << __LINE__ <<std::endl;
     thyra_model_->evalModel(inArgs, outArgs);
-    std::cout << __FILE__ << __LINE__ <<std::endl;
+
 }
 #endif
 

@@ -518,9 +518,7 @@ public:
       for(int i=0; i<thyra_prodvec_ajv->productSpace()->numBlocks(); ++i) {
         auto dfdp_op = dfdp_block_op->getBlock(0, i);
         if (dfdp_op != Teuchos::null) {
-             std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
           dfdp_op->apply(Thyra::TRANS,*thyra_v.getVector(), thyra_prodvec_ajv->getNonconstVectorBlock(i).ptr(),1.0, 0.0);
-             std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
           // Thyra::update(1.0,  *tmp, thyra_ajv.getMultiVector().ptr());
         } else {
           TEUCHOS_TEST_FOR_EXCEPTION(
@@ -536,9 +534,7 @@ public:
     else {
       auto dfdp_op = dfdp_dv.getLinearOp();      
       if (dfdp_op != Teuchos::null) {
-           std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
         dfdp_op->apply(Thyra::TRANS,*thyra_v.getVector(), thyra_ajv.getMultiVector().ptr(),1.0, 0.0);
-           std::cout << __FILE__ << ": " << __LINE__ <<std::endl;
         // Thyra::update(1.0,  *tmp, thyra_ajv.getMultiVector().ptr());
       } else {
         TEUCHOS_TEST_FOR_EXCEPTION(

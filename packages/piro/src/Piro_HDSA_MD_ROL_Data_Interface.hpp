@@ -30,7 +30,6 @@ public:
 
   HDSA::Ptr<HDSA::Vector<RealT> > Load_Optimal_u(void) const {
     HDSA::Ptr<HDSA::Vector<RealT> > u_opt = HDSA::makePtr<HDSA::ROL_Vector<RealT> >(u_rol_opt_);
-    std::cout << "Load_Optimal_u norm: " << u_opt->norm() << std::endl;
     return u_opt;
   }
   
@@ -50,18 +49,10 @@ public:
   }
 
   HDSA::Ptr<HDSA::MultiVector<RealT> > Load_D_Data(void) const override {
-    std::cout << "Load_D_Data norms: " ;
-    for (int i=0; i<d_data_->Number_of_Vectors(); ++i)
-      std::cout << (*d_data_)[i]->norm() << " ";
-    std::cout << std::endl;
     return d_data_;
   }
 
   HDSA::Ptr<HDSA::MultiVector<RealT> > Load_Z_Data(void) const override {
-    std::cout << "Load_Z_Data norms: " ;
-    for (int i=0; i<z_data_->Number_of_Vectors(); ++i)
-      std::cout << (*z_data_)[i]->norm() << " ";
-    std::cout << std::endl;
     return z_data_;
   }  
 };

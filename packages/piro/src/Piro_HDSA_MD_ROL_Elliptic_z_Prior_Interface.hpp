@@ -2,7 +2,6 @@
 #define PIRO_HDSA_MD_ROL_ELLIPTIC_Z_PRIOR_INTERFACE_HPP
 
 #include "../../../../../../hdsalib/sources/hdsalib-src/src/source_file.hpp"
-//#include "HDSA_ROL_MD_Interface.hpp"
 
 namespace Piro
 {
@@ -49,18 +48,15 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*z_out_rol.rol_vec).getVector();
       auto trans = transpose ? Thyra::TRANS : Thyra::NOTRANS;
       Thyra::apply(*invEzOp_, trans, *in, out.ptr(), (RealT)1, (RealT)0);
-      std::cout << "E_z in, out norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
     }  
   }
 
   virtual void Apply_E_z_Inverse(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const override {
     Apply_E_z_Inverse_Implem(z_out, z_in, false);
-     std::cout << "Apply_z_Elliptic_Operator_Inverse norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   virtual void Apply_E_z_Inverse_Transpose(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const override {
     Apply_E_z_Inverse_Implem(z_out, z_in, true);
-    std::cout << "Apply_z_Elliptic_Operator_Inverse_Transpose norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   void Apply_E_z_Implem(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in, bool transpose) const {
@@ -73,18 +69,15 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*z_out_rol.rol_vec).getVector();
       auto trans = transpose ? Thyra::TRANS : Thyra::NOTRANS;
       Thyra::apply(*EzOp_, trans, *in, out.ptr(), (RealT)1, (RealT)0);
-      std::cout << "fwd E_z in, out norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
     }  
   }
 
     virtual void Apply_E_z(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const override {
     Apply_E_z_Implem(z_out, z_in, false);
-     std::cout << "Apply_z_Elliptic_Operator_Inverse norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   virtual void Apply_E_z_Transpose(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const override {
     Apply_E_z_Implem(z_out, z_in, true);
-    std::cout << "Apply_z_Elliptic_Operator_Inverse_Transpose norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   virtual void Apply_M_z(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const override {
@@ -97,7 +90,6 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*z_out_rol.rol_vec).getVector();
       Thyra::apply(*massOp_, Thyra::NOTRANS, *in, out.ptr(), (RealT)1, (RealT)0);
     } 
-    std::cout << "Apply_u_Mass_Mat norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   virtual void Apply_M_z_Inverse(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const override {
@@ -110,7 +102,6 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*z_out_rol.rol_vec).getVector();
       Thyra::apply(*invMassOp_, Thyra::NOTRANS, *in, out.ptr(), (RealT)1, (RealT)0);
     } 
-    std::cout << "Apply_u_Mass_Mat norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   virtual void Apply_CholM_z_Transpose(HDSA::Vector<RealT> & z_out, const HDSA::Vector<RealT> & z_in) const {
@@ -123,7 +114,6 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*z_out_rol.rol_vec).getVector();
       Thyra::apply(*cholMassOp_, Thyra::TRANS, *in, out.ptr(), (RealT)1, (RealT)0);
     } 
-    std::cout << "Apply_u_Mass_Mat norms: " << z_in.norm() << " " << z_out.norm() << std::endl;
   }
 
   void Sample_with_Covariance_W_z_Inverse(HDSA::MultiVector<RealT> & samples) const override {

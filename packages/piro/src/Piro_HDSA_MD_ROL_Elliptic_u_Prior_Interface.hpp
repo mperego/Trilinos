@@ -2,7 +2,6 @@
 #define PIRO_HDSA_MD_ROL_ELLIPTIC_U_PRIOR_INTERFACE_HPP
 
 #include "../../../../../../hdsalib/sources/hdsalib-src/src/source_file.hpp"
-//#include "HDSA_ROL_MD_Interface.hpp"
 
 namespace Piro
 {
@@ -40,18 +39,15 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*u_out_rol.rol_vec).getVector();
       auto trans = transpose ? Thyra::TRANS : Thyra::NOTRANS;
       Thyra::apply(*invEllOp_, trans, *in, out.ptr(), (RealT)1, (RealT)0);
-      std::cout << "in, out norms: " << u_in.norm() << " " << u_out.norm() << std::endl;
     }  
   }
 
   virtual void Apply_E_u_Inverse(HDSA::Vector<RealT> & u_out, const HDSA::Vector<RealT> & u_in) const override {
     Apply_E_u_Inverse_Transpose_Implem(u_out, u_in, false);
-     std::cout << "Apply_u_Elliptic_Operator_Inverse norms: " << u_in.norm() << " " << u_out.norm() << std::endl;
   }
 
   virtual void Apply_E_u_Inverse_Transpose(HDSA::Vector<RealT> & u_out, const HDSA::Vector<RealT> & u_in) const override {
     Apply_E_u_Inverse_Transpose_Implem(u_out, u_in, true);
-    std::cout << "Apply_u_Elliptic_Operator_Inverse_Transpose norms: " << u_in.norm() << " " << u_out.norm() << std::endl;
   }
 
   virtual void Apply_M_u(HDSA::Vector<RealT> & u_out, const HDSA::Vector<RealT> & u_in) const override {
@@ -64,7 +60,6 @@ public:
       Teuchos::RCP<Thyra::VectorBase<RealT> > out = dynamic_cast<ROL::ThyraVector<RealT> &>(*u_out_rol.rol_vec).getVector();
       Thyra::apply(*massOp_, Thyra::NOTRANS, *in, out.ptr(), (RealT)1, (RealT)0);
     } 
-    std::cout << "Apply_u_Mass_Mat norms: " << u_in.norm() << " " << u_out.norm() << std::endl;
   }
 
 };

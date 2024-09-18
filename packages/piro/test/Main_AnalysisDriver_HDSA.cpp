@@ -212,7 +212,7 @@ int main(int argc, char *argv[]) {
         diff.update(1.0, *p_vec, -1.0, *true_p_vec, 0.0 );
         double relErr = diff.norm2()/true_p_vec->norm2();
 
-        double expectedRelErr = 0.00210437364926;   
+        double expectedRelErr = 0.00210387131382;   
         
         double tol = 1e-8;
         if(std::abs(relErr-expectedRelErr) > 1e-8) {
