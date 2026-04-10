@@ -101,7 +101,7 @@ public:
                const ordinal_type   order);
   };
 
-  template<typename DeviceType, ordinal_type numPtsPerEval,
+  template<typename DeviceType,
   typename outputValueValueType, class ...outputValueProperties,
   typename inputPointValueType,  class ...inputPointProperties>
   static void
@@ -117,8 +117,7 @@ public:
   template<typename outputValueViewType,
   typename inputPointViewType,
   typename workViewType,
-  EOperator opType,
-  ordinal_type numPtsEval>
+  EOperator opType>
   struct Functor {
           outputValueViewType _outputValues;
     const inputPointViewType  _inputPoints;
@@ -134,23 +133,19 @@ public:
 
     KOKKOS_INLINE_FUNCTION
     void operator()(const size_type iter) const {
-      const auto ptBegin = Util<ordinal_type>::min(iter*numPtsEval,    _inputPoints.extent(0));
-      const auto ptEnd   = Util<ordinal_type>::min(ptBegin+numPtsEval, _inputPoints.extent(0));
-
-      const auto ptRange = Kokkos::pair<ordinal_type,ordinal_type>(ptBegin, ptEnd);
-      const auto input   = Kokkos::subview( _inputPoints, ptRange, Kokkos::ALL() );
+      const auto input   = Kokkos::subview( _inputPoints, iter, Kokkos::ALL() );
 
       switch (opType) {
       case OPERATOR_VALUE : {
-        auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange );
+        auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), iter );
         Serial<opType>::getValues( output, input, _work, _order );  //here work is not used
         break;
       }
       case OPERATOR_GRAD :
       case OPERATOR_D1 :
       {
-        const auto work = Kokkos::subview( _work, Kokkos::ALL(), ptRange, Kokkos::ALL() );
-        auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange, Kokkos::ALL() );
+        const auto work = Kokkos::subview( _work, Kokkos::ALL(), iter, Kokkos::ALL() );
+        auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), iter, Kokkos::ALL() );
         Serial<opType>::getValues( output, input, work, _order);
         break;
       }
@@ -164,7 +159,7 @@ public:
       case OPERATOR_D9 :
       case OPERATOR_D10 :
       {
-        auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange, Kokkos::ALL() );
+        auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), iter, Kokkos::ALL() );
         Serial<opType>::getValues( output, input, _work, _order); //here work is not used
         break;
       }
@@ -219,13 +214,12 @@ class Basis_HGRAD_TRI_Cn_FEM_ORTH
                                           this->getBaseCellTopology(),
                                           this->getCardinality() );
     #endif
-    constexpr ordinal_type numPtsPerEval = Parameters::MaxNumPtsPerBasisEval;
     Impl::Basis_HGRAD_TRI_Cn_FEM_ORTH::
-    getValues<DeviceType,numPtsPerEval>(space,
-                                        outputValues,
-                                        inputPoints,
-                                        this->getDegree(),
-                                        operatorType);
+    getValues<DeviceType>(space,
+                            outputValues,
+                            inputPoints,
+                            this->getDegree(),
+                            operatorType);
   }
 };
 

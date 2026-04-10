@@ -75,7 +75,7 @@ namespace Intrepid2 {
                          const ordinal_type        order);
       };
 
-      template<typename DeviceType, ordinal_type numPtsPerEval,
+      template<typename DeviceType,
                typename OutputValueValueType, class ...OutputValueProperties,
                typename InputPointValueType,  class ...InputPointProperties,
                typename VinvValueType,        class ...VinvProperties>
@@ -94,8 +94,7 @@ namespace Intrepid2 {
                typename InputPointViewType,
                typename VinvViewType,
                typename WorkViewType,
-               EOperator OpType,
-               ordinal_type numPtsEval>
+               EOperator OpType>
       struct Functor {
         OutputValueViewType _outputValues;
         const InputPointViewType  _inputPoints;
@@ -114,26 +113,22 @@ namespace Intrepid2 {
 
         KOKKOS_INLINE_FUNCTION
         void operator()(const size_type iter) const {
-          const auto ptBegin = Util<ordinal_type>::min(iter*numPtsEval,    _inputPoints.extent(0));
-          const auto ptEnd   = Util<ordinal_type>::min(ptBegin+numPtsEval, _inputPoints.extent(0));
+          const auto input   = Kokkos::subview( _inputPoints, iter, Kokkos::ALL() );
 
-          const auto ptRange = Kokkos::pair<ordinal_type,ordinal_type>(ptBegin, ptEnd);
-          const auto input   = Kokkos::subview( _inputPoints, ptRange, Kokkos::ALL() );
+          typename WorkViewType::pointer_type ptr = _work.data() + _work.extent(0)*iter*get_dimension_scalar(_work);
 
-          typename WorkViewType::pointer_type ptr = _work.data() + _work.extent(0)*ptBegin*get_dimension_scalar(_work);
-
-          WorkViewType work = createMatchingUnmanagedView<WorkViewType>(_work, ptr, (ptEnd-ptBegin)*_work.extent(0));
+          WorkViewType work = createMatchingUnmanagedView<WorkViewType>(_work, ptr, _work.extent(0));
 
           switch (OpType) {
           case OPERATOR_VALUE : {
-            auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange );
+            auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), iter );
             Serial<OpType>::getValues( output, input, work, _vinv, _order );
             break;
           }
           case OPERATOR_CURL:
           case OPERATOR_D1:
           case OPERATOR_D2:  {
-            auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), ptRange, Kokkos::ALL() );
+            auto output = Kokkos::subview( _outputValues, Kokkos::ALL(), iter, Kokkos::ALL() );
             Serial<OpType>::getValues( output, input, work, _vinv, _order );
             break;
           }
@@ -197,9 +192,8 @@ namespace Intrepid2 {
                                       this->getBaseCellTopology(),
                                       this->getCardinality() );
 #endif
-      constexpr ordinal_type numPtsPerEval = Parameters::MaxNumPtsPerBasisEval;
       Impl::Basis_HGRAD_TRI_Cn_FEM::
-        getValues<DeviceType,numPtsPerEval>(space,
+        getValues<DeviceType>(space,
                                             outputValues,
                                             inputPoints,
                                             this->vinv_,
