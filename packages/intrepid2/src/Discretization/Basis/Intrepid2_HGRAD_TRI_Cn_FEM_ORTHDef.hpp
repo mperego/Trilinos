@@ -37,38 +37,38 @@ void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,0>::ge
 
   typedef typename InputViewType::value_type value_type;
 
-  auto output0 = (hasDeriv) ? Kokkos::subview(output, Kokkos::ALL(),0) : Kokkos::subview(output, Kokkos::ALL());
-
-  // each point needs to be transformed from Pavel's element
-  // z(0) --> (2.0 * input(0) - 1.0)
-  // z(1) --> (2.0 * input(1) - 1.0)
-
-
   // set D^{0,0} = 1.0
   {
     const ordinal_type loc = Intrepid2::getPnEnumeration<spaceDim>(0,0);
-    output0(loc) = 1.0;
-    if(hasDeriv) {
-      output.access(loc,1) = 0;
-      output.access(loc,2) = 0;
+    if constexpr(hasDeriv) {
+      output(loc,0) = 1.0;
+      output(loc,1) = 0;
+      output(loc,2) = 0;
+    }
+    else {
+      output(loc) = 1.0;
     }
   }
 
   if (order > 0) {
+    // each point needs to be transformed from [0, 1] coords to [-1, 1] coords
+    // z(0) --> (2.0 * input(0) - 1.0)
+    // z(1) --> (2.0 * input(1) - 1.0)
     const value_type z0 = 2.0*input(0)-1.0;
     const value_type z1 = 2.0*input(1)-1.0;
     const value_type f1 = z0 + input(1);   // z_0 + (1 + z_1)/2
     const value_type f2 = pow(input(1)-1,2);  //( (1 - z_1)/2 )^2
     
-    const value_type df1_0(2.0), df1_1(1.0), df2_1(z1);    
-
     // set D^{1,0} = f1
     {
       const ordinal_type loc = Intrepid2::getPnEnumeration<spaceDim>(1,0);
-      output0(loc) = f1;
-      if(hasDeriv) {
-        output(loc,1) = df1_0;
-        output(loc,2) = df1_1;
+      
+      if constexpr(hasDeriv) {
+        output(loc,0) = f1;
+        output(loc,1) = 2.0; // df1_0
+        output(loc,2) = 1.0; // df1_1
+      } else {
+        output(loc) = f1;
       }
     }
 
@@ -79,15 +79,17 @@ void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,0>::ge
       loc_p1 = Intrepid2::getPnEnumeration<spaceDim>(p+1,0),
       loc_m1 = Intrepid2::getPnEnumeration<spaceDim>(p-1,0);
 
-      const value_type a = (2.0*p+1.0)/(1.0+p);
-      const value_type b = p / (p+1.0);
+      const typename ScalarTraits<value_type>::scalar_type a = (2*p+1.0)/(1+p);
+      const typename ScalarTraits<value_type>::scalar_type b = p / (p+1.0);
 
-      output0(loc_p1) = a * f1 * output0(loc) - b * f2 * output0(loc_m1);
-      if(hasDeriv) {
-        output(loc_p1,1) =  a * (f1 * output(loc,1) + df1_0 * output0(loc))  -
+      if constexpr(hasDeriv) {
+        output(loc_p1,0) = a * f1 * output(loc,0) - b * f2 * output(loc_m1,0);
+        output(loc_p1,1) =  a * (f1 * output(loc,1) + 2.0 * output(loc,0))  -
             b * f2 * output(loc_m1,1) ;
-        output(loc_p1,2) =  a * (f1 * output(loc,2) + df1_1 * output0(loc))  -
-            b * (df2_1 * output0(loc_m1) + f2 * output(loc_m1,2)) ;
+        output(loc_p1,2) =  a * (f1 * output(loc,2) + output(loc,0))  -
+            b * (z1 * output(loc_m1,0) + f2 * output(loc_m1,2)) ;
+      } else {
+        output(loc_p1) = a * f1 * output(loc) - b * f2 * output(loc_m1);
       }
     }
 
@@ -97,10 +99,14 @@ void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,0>::ge
       loc_p_0 = Intrepid2::getPnEnumeration<spaceDim>(p,0),
       loc_p_1 = Intrepid2::getPnEnumeration<spaceDim>(p,1);
 
-      output0(loc_p_1) = output0(loc_p_0)*0.5*(1.0+2.0*p+(3.0+2.0*p)*z1);
-      if(hasDeriv) {
-        output(loc_p_1,1) = output(loc_p_0,1)*0.5*(1.0+2.0*p+(3.0+2.0*p)*z1);
-        output(loc_p_1,2) = output(loc_p_0,2)*0.5*(1.0+2.0*p+(3.0+2.0*p)*z1) + output0(loc_p_0)*(3.0+2.0*p);
+      ordinal_type p_coeff = 3+2*p;
+      value_type z_coeff = 0.5*(1+2*p+p_coeff*z1);
+      if constexpr(hasDeriv) {
+        output(loc_p_1,0) = output(loc_p_0,0)*z_coeff;
+        output(loc_p_1,1) = output(loc_p_0,1)*z_coeff;
+        output(loc_p_1,2) = output(loc_p_0,2)*z_coeff + output(loc_p_0,0)*p_coeff;
+      } else {
+        output(loc_p_1) = output(loc_p_0)*z_coeff;
       }
     }
 
@@ -113,13 +119,17 @@ void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,0>::ge
         loc_p_q = Intrepid2::getPnEnumeration<spaceDim>(p,q),
         loc_p_qm1 = Intrepid2::getPnEnumeration<spaceDim>(p,q-1);
 
-        value_type a,b,c;
+        value_type a,b,c,d;
         Intrepid2::getJacobyRecurrenceCoeffs(a,b,c, 2*p+1,0,q);
-        output0(loc_p_qp1) =  (a*z1+b)*output0(loc_p_q)
-                  - c*output0(loc_p_qm1) ;
-        if(hasDeriv) {
-          output(loc_p_qp1,1) =  (a*z1+b)*output(loc_p_q,1) - c*output(loc_p_qm1,1) ;
-          output(loc_p_qp1,2) =  (a*z1+b)*output(loc_p_q,2) +2*a*output0(loc_p_q) - c*output(loc_p_qm1 ,2) ;
+        d = (a*z1+b);
+        
+        if constexpr (hasDeriv) {
+          output(loc_p_qp1,0) =  d*output(loc_p_q,0) - c*output(loc_p_qm1,0) ;
+          output(loc_p_qp1,1) =  d*output(loc_p_q,1) - c*output(loc_p_qm1,1) ;
+          output(loc_p_qp1,2) =  d*output(loc_p_q,2) + 2*a*output(loc_p_q,0) - c*output(loc_p_qm1 ,2) ;
+        }
+        else {
+          output(loc_p_qp1) =  d*output(loc_p_q) - c*output(loc_p_qm1) ;
         }
       }
   }
@@ -127,46 +137,49 @@ void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,0>::ge
   // orthogonalize
   for (ordinal_type p=0;p<=order;++p)
     for (ordinal_type q=0;q<=order-p;++q){
-      output0(Intrepid2::getPnEnumeration<spaceDim>(p,q)) *= std::sqrt( (p+0.5)*(p+q+1.0));
-      if(hasDeriv) {
-        output.access(Intrepid2::getPnEnumeration<spaceDim>(p,q),1) *= std::sqrt( (p+0.5)*(p+q+1.0));
-        output.access(Intrepid2::getPnEnumeration<spaceDim>(p,q),2) *= std::sqrt( (p+0.5)*(p+q+1.0));
+      const typename ScalarTraits<value_type>::scalar_type coeff = std::sqrt((p+0.5)*(p+q+1));
+      if constexpr (hasDeriv) {
+        output(Intrepid2::getPnEnumeration<spaceDim>(p,q),0) *= coeff;
+        output(Intrepid2::getPnEnumeration<spaceDim>(p,q),1) *= coeff;
+        output(Intrepid2::getPnEnumeration<spaceDim>(p,q),2) *= coeff;
+      } else {
+        output(Intrepid2::getPnEnumeration<spaceDim>(p,q)) *=  coeff;
       }
     }
 }
 
 template<typename OutputViewType,
-typename inputViewType,
-typename workViewType,
+typename InputViewType,
+typename WorkViewType,
 bool hasDeriv>
 KOKKOS_INLINE_FUNCTION
-void OrthPolynomialTri<OutputViewType,inputViewType,workViewType,hasDeriv,1>::generate(
+void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,1>::generate(
     OutputViewType output,
-    const inputViewType  input,
-    workViewType   work,
+    const InputViewType  input,
+    WorkViewType   work,
     const ordinal_type   order ) {
   constexpr ordinal_type spaceDim = 2;
   const ordinal_type  card = output.extent(0);
 
-  workViewType dummyView;
-  OrthPolynomialTri<workViewType,inputViewType,workViewType,hasDeriv,0>::generate(work, input, dummyView, order);
+  WorkViewType dummyView;
+  OrthPolynomialTri<WorkViewType,InputViewType,WorkViewType,hasDeriv,0>::generate(work, input, dummyView, order);
   for (ordinal_type i=0;i<card;++i)
     for (ordinal_type k=0;k<spaceDim;++k)
-      output.access(i,k) = work(i,k+1);
+      output(i,k) = work(i,k+1);
 }
 
 
 // when n >= 2, use recursion
 template<typename OutputViewType,
-typename inputViewType,
-typename workViewType,
+typename InputViewType,
+typename WorkViewType,
 bool hasDeriv,
 ordinal_type n>
 KOKKOS_INLINE_FUNCTION
-void OrthPolynomialTri<OutputViewType,inputViewType,workViewType,hasDeriv,n>::generate(
+void OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,hasDeriv,n>::generate(
     OutputViewType /* output */,
-    const inputViewType  /* input */,
-    workViewType   /* work */,
+    const InputViewType  /* input */,
+    WorkViewType   /* work */,
     const ordinal_type   /* order */ ) {
 INTREPID2_TEST_FOR_ABORT( true,
     ">>> ERROR: (Intrepid2::Basis_HGRAD_TRI_Cn_FEM_ORTH::OrthPolynomialTri) Computing of second and higher-order derivatives is not currently supported");
@@ -176,49 +189,40 @@ INTREPID2_TEST_FOR_ABORT( true,
 
 template<EOperator opType>
 template<typename OutputViewType,
-typename inputViewType,
-typename workViewType>
+typename InputViewType,
+typename WorkViewType>
 KOKKOS_INLINE_FUNCTION
 void
 Basis_HGRAD_TRI_Cn_FEM_ORTH::Serial<opType>::
 getValues( OutputViewType output,
-    const inputViewType  input,
-    workViewType   work,
+    const InputViewType  input,
+    WorkViewType   work,
     const ordinal_type   order) {
-  switch (opType) {
-  case OPERATOR_VALUE: {
-    OrthPolynomialTri<OutputViewType,inputViewType,workViewType,false,0>::generate( output, input, work, order );
-    break;
-  }
-  case OPERATOR_GRAD:
-  case OPERATOR_D1: {
-    OrthPolynomialTri<OutputViewType,inputViewType,workViewType,true,1>::generate( output, input, work, order );
-    break;
-  }
-  case OPERATOR_D2: {
-    OrthPolynomialTri<OutputViewType,inputViewType,workViewType,true,2>::generate( output, input, work, order );
-    break;
-  }
-  default: {
+  if constexpr (opType == OPERATOR_VALUE) {
+    OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,false,0>::generate( output, input, work, order );
+  } else if constexpr (opType == OPERATOR_GRAD || opType == OPERATOR_D1) {
+     OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,true,1>::generate( output, input, work, order );
+  } else if constexpr (opType == OPERATOR_D2) {
+    OrthPolynomialTri<OutputViewType,InputViewType,WorkViewType,true,2>::generate( output, input, work, order );
+  } else {
     INTREPID2_TEST_FOR_ABORT( true,
         ">>> ERROR: (Intrepid2::Basis_HGRAD_TRI_Cn_FEM_ORTH::Serial::getValues) operator is not supported");
-  }
   }
 }
 
 template<typename DT,
-typename outputValueValueType, class ...outputValueProperties,
-typename inputPointValueType,  class ...inputPointProperties>
+typename OutputValueValueType, class ...OutputValueProperties,
+typename InputPointValueType,  class ...InputPointProperties>
 void
 Basis_HGRAD_TRI_Cn_FEM_ORTH::
 getValues(
     const typename DT::execution_space& space,
-          Kokkos::DynRankView<outputValueValueType,outputValueProperties...> outputValues,
-    const Kokkos::DynRankView<inputPointValueType, inputPointProperties...>  inputPoints,
+          Kokkos::DynRankView<OutputValueValueType,OutputValueProperties...> outputValues,
+    const Kokkos::DynRankView<InputPointValueType, InputPointProperties...>  inputPoints,
     const ordinal_type order,
     const EOperator operatorType ) {
-  typedef          Kokkos::DynRankView<outputValueValueType,outputValueProperties...>         outputValueViewType;
-  typedef          Kokkos::DynRankView<inputPointValueType, inputPointProperties...>          inputPointViewType;
+  typedef          Kokkos::DynRankView<OutputValueValueType,OutputValueProperties...>         OutputValueViewType;
+  typedef          Kokkos::DynRankView<InputPointValueType, InputPointProperties...>          InputPointViewType;
   typedef typename DT::execution_space ExecSpaceType;
 
   // loopSize corresponds to the # of points
@@ -228,25 +232,25 @@ getValues(
   const ordinal_type cardinality = outputValues.extent(0);
   const ordinal_type spaceDim = 2;
 
-  typedef typename DeduceDynRankView<inputPointViewType>::type workViewType;
+  typedef typename DeduceDynRankView<InputPointViewType>::type workViewType;
 
   switch (operatorType) {
   case OPERATOR_VALUE: {
     workViewType  dummyWorkView;
-    typedef Functor<outputValueViewType,inputPointViewType,workViewType,OPERATOR_VALUE> FunctorType;
+    typedef Functor<OutputValueViewType,InputPointViewType,workViewType,OPERATOR_VALUE> FunctorType;
     Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints, dummyWorkView, order) );
     break;
   }
   case OPERATOR_GRAD:
   case OPERATOR_D1: {
     workViewType work = createMatchingView<workViewType>(inputPoints, "Basis_HGRAD_TRI_In_FEM_ORTH::getValues::work", cardinality, inputPoints.extent(0), spaceDim+1);
-    typedef Functor<outputValueViewType,inputPointViewType,workViewType,OPERATOR_D1> FunctorType;
+    typedef Functor<OutputValueViewType,InputPointViewType,workViewType,OPERATOR_D1> FunctorType;
     Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints, work, order) );
     break;
   }
   case OPERATOR_D2:{
     workViewType  dummyWorkView;
-    typedef Functor<outputValueViewType,inputPointViewType,workViewType,OPERATOR_D2> FunctorType;
+    typedef Functor<OutputValueViewType,InputPointViewType,workViewType,OPERATOR_D2> FunctorType;
     Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints ,dummyWorkView, order) );
     break;
   }
