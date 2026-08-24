@@ -96,11 +96,13 @@ int main(int argc, char *argv[]) {
 
   Piro::SolverFactory solverFactory;
 
-  for (int iTest=0; iTest<1; iTest++) {
-
+  for (int iTest=0; iTest<3; iTest++) {
+    double expectedRelErr = 0;
     if (doAll) {
       switch (iTest) {
-       case 0: inputFile="input_Analysis_HDSA.xml"; break;
+       case 0: inputFile="input_Analysis_HDSA.xml"; expectedRelErr = 0.002104083; break;
+       case 1: inputFile="input_Analysis_HDSA_continuation.xml"; expectedRelErr = 0.001648245; break;
+       case 2: inputFile="input_Analysis_HDSA_OED.xml"; expectedRelErr = 0.0002696868; break;
        default : std::cout << "iTest logic error " << std::endl; exit(-1);
       }
     }
@@ -143,10 +145,8 @@ int main(int argc, char *argv[]) {
           auto model_tmp = rcp(new MockModelEval_H_Tpetra(appComm,false,probParams,true));
           p_opt = model_tmp->get_p_opt(0);
           true_p_opt = model_tmp->get_true_p_opt(0);
-          for (int k=0; k<2; k++) {
-            p_samples.push_back(model_tmp->get_param_samples(k));
-            u_diff_at_samples.push_back(model_tmp->get_solution_diff_at_samples(k));
-          }
+          p_samples.push_back(model_tmp->get_param_samples(0));
+          u_diff_at_samples.push_back(model_tmp->get_solution_diff_at_samples(0));
           model = rcp(new Piro::ProductModelEvaluator<double>(model_tmp,p_indices));
           if(explicitAdjointME) {
             RCP<Thyra::ModelEvaluator<double>> adjointModel_tmp = rcp(new MockModelEval_H_Tpetra(appComm,true));
@@ -188,6 +188,28 @@ int main(int argc, char *argv[]) {
 
         // Call the analysis routine
         RCP<Thyra::VectorBase<double>> p;  //the parameter nominal value in modelWithSolve is supposed to be the same as p_opt (low fidelity optimal paramer) 
+        bool performAnalysisWithOED = piroParams->sublist("Analysis").sublist("HDSA").get("Perform HDSA Analysis With OED", false);
+        auto model_H = Teuchos::rcp_dynamic_cast<MockModelEval_H_Tpetra>(Teuchos::rcp_dynamic_cast<Piro::ProductModelEvaluator<double>>(model)->getModel());
+        if(performAnalysisWithOED) {
+          const int number_OED_steps = piroParams->sublist("Analysis").sublist("HDSA").get<int>("Number Of OED Steps", 1);
+          for (int oed_steps=0; oed_steps<number_OED_steps; oed_steps++) {              
+            status = Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
+            if(Teuchos::nonnull(model_H)) {
+              p_samples.push_back(p->clone_v());
+              u_diff_at_samples.push_back(model_H->get_solution_diff_at_param(p_samples.back()));
+            }
+          }
+          piroParams->sublist("Analysis").sublist("HDSA").set("Perform HDSA Analysis With OED", false);
+        } else {
+          if(Teuchos::nonnull(model_H)) {
+            for (int k=1; k<2; k++) {
+              p_samples.push_back(model_H->get_param_samples(k));
+              u_diff_at_samples.push_back(model_H->get_solution_diff_at_samples(k));
+            }
+          }
+        }
+
+        //RCP<Thyra::VectorBase<double>> p;  //the parameter nominal value in modelWithSolve is supposed to be the same as p_opt (low fidelity optimal paramer) 
         status = Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
         Teuchos::RCP<const Thyra::ProductVectorBase<double> > p_prodvec = Teuchos::rcp_dynamic_cast<Thyra::ProductVectorBase<double>>(p);
 
@@ -210,8 +232,6 @@ int main(int argc, char *argv[]) {
         // diff = p_vec - true_p_vec
         diff.update(1.0, *p_vec, -1.0, *true_p_vec, 0.0 );
         double relErr = diff.norm2()/true_p_vec->norm2();
-
-        double expectedRelErr = 0.00210408306503;
         
         double tol = 1e-6;  
         if(std::abs(relErr-expectedRelErr) > tol) {

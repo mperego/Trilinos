@@ -209,7 +209,8 @@
       <ParameterList name="HDSA">
         <Parameter name="Number Of Parameters" type="int" value="1" />
         <Parameter name="Check Derivatives" type="bool" value="false" />
-        <Parameter name="Perform HDSA Analysis With OED" type="bool" value="false" />    
+        <Parameter name="Perform HDSA Analysis With OED" type="bool" value="true" />    
+        <Parameter name="Number Of OED Steps" type="int" value="2" /> 
         <ParameterList name="Derivative Checks">
           <Parameter name="Perform Reduced Derivative Checks" type="bool" value="false" />
           <Parameter name="Perform Expensive Derivative Checks" type="bool" value="false" />
@@ -249,6 +250,9 @@
         <ParameterList name="MD Hessian Analysis">
           <Parameter name="Rank"  type="int" value="20" />
           <Parameter name="Oversampling Factor" type="int" value="10" />    
+        </ParameterList>
+        <ParameterList name="MD Continuation Update">
+          <Parameter name="Number Of Continuation Steps" type="int" value="3" />    
         </ParameterList>
       </ParameterList>
     

@@ -37,6 +37,7 @@
 #include "ROL_Bounds.hpp"
 #include "Thyra_VectorDefaultBase.hpp"
 #include "Thyra_DefaultBlockedLinearOp.hpp"
+#include "Thyra_DefaultProductVectorSpace.hpp"
 #include "Piro_CustomLBFGSSecant.hpp"
 #include "ROL_LinearOpScaledThyraVector.hpp"
 
@@ -46,8 +47,10 @@
 #include "Piro_HDSA_MD_ROL_Elliptic_z_Prior_Interface.hpp"
 #include "HDSA_MD_ROL_Opt_Prob_Interface.hpp"
 #include "HDSA_MD_Posterior_Sampling.hpp"
+#include "HDSA_MD_Prior_Sampling.hpp"
 #include "HDSA_MD_Hessian_Analysis.hpp"
 #include "HDSA_MD_Update.hpp"
+#include "HDSA_MD_OED.hpp"
 #endif
 
 #endif
@@ -1158,6 +1161,81 @@ Piro::PerformROLAnalysis(
   return PerformROLSteadyAnalysis(piroModel, piroParams, p, observer);
 }
 
+HDSA::Ptr<HDSA::Dense_Matrix<double>> Vector_To_Dense(const HDSA::Vector<double>& x) {
+  HDSA::Ptr<HDSA::Dense_Matrix<double>> y = HDSA::makePtr<HDSA::Dense_Matrix<double>>(x.Dimension(), 1);
+
+  y->Zeros();
+
+  for (int i = 0; i < x.Dimension(); ++i) {
+    y->Set_Entry(i, 0, x.Dot(*x.Get_Basis(i)));
+  }
+
+  return y;
+}
+
+HDSA::Ptr<HDSA::Dense_Matrix<double>> Append_Betas(const HDSA::Dense_Matrix<double>& old_betas,
+                                                  const HDSA::Dense_Matrix<double>& new_betas) {
+
+  const int old_len = old_betas.Number_of_Rows() * old_betas.Number_of_Columns();
+  const int new_len = new_betas.Number_of_Rows() * new_betas.Number_of_Columns();
+
+  HDSA::Ptr<HDSA::Dense_Matrix<double>> all_betas = HDSA::makePtr<HDSA::Dense_Matrix<double>>(old_len + new_len, 1);
+
+  all_betas->Zeros();
+  {
+    int nrows = old_betas.Number_of_Rows();
+    for (int i = 0; i < old_len; ++i) 
+      all_betas->Set_Entry(i, 0, old_betas(i % nrows, i / nrows));
+  }
+
+  {
+    int nrows = new_betas.Number_of_Rows();
+    for (int i = 0; i < new_len; ++i)
+      all_betas->Set_Entry(old_len + i, 0, new_betas(i % nrows, i / nrows));
+  }
+  
+  return all_betas;
+}
+
+double M_z_Norm_Difference(const HDSA::Vector<double>& a, const HDSA::Vector<double>& b,
+                          const HDSA::MD_z_Prior_Interface<double>& z_prior_interface) {
+  HDSA::Ptr<HDSA::Vector<double>> diff = a.Clone();
+  diff->Set(a);
+  diff->Scaled_Plus(static_cast<double>(-1), b);
+
+  HDSA::Ptr<HDSA::Vector<double>> Mz_diff = a.Clone();
+  z_prior_interface.Apply_M_z(*Mz_diff, *diff);
+
+  const double norm_sq = diff->Dot(*Mz_diff);
+
+  return std::sqrt(std::max(static_cast<double>(0), norm_sq));
+}
+
+double Trace_Wz_Inverse_Mz(const HDSA::Vector<double>& prototype,
+                          const HDSA::MD_z_Prior_Interface<double>& z_prior_interface) {
+  const int n = prototype.Dimension();
+  double trace_val = static_cast<double>(0);
+  for (int i = 0; i < n; ++i) {
+    HDSA::Ptr<HDSA::Vector<double>> e_i = prototype.Get_Basis(i);
+
+    HDSA::Ptr<HDSA::Vector<double>> Mz_e_i = prototype.Clone();
+    z_prior_interface.Apply_M_z(*Mz_e_i, *e_i);
+
+    HDSA::Ptr<HDSA::Vector<double>> Wz_inv_Mz_e_i = prototype.Clone();
+    z_prior_interface.Apply_W_z_Inverse(*Wz_inv_Mz_e_i, *Mz_e_i);
+
+    trace_val += Wz_inv_Mz_e_i->Dot(*e_i);
+  }
+  return trace_val;
+}
+
+double Vector_Difference_Norm(const HDSA::Vector<double>& a, const HDSA::Vector<double>& b) {
+  HDSA::Ptr<HDSA::Vector<double>> diff = a.Clone();
+  diff->Set(a);
+  diff->Scaled_Plus(static_cast<double>(-1), b);
+  return diff->Norm();
+}
+
 
 int
 Piro::PerformHDSAAnalysis(
@@ -1704,15 +1782,14 @@ Piro::PerformHDSAAnalysis(
 
     elliptic_u_prior_interface->Compute_E_u_Inverse_GSVD(num_sing_vals, oversampling, num_subspace_iters, *u_vec);
 
-    //HDSA::Ptr<HDSA::MD_Prior_Sampling<double> > prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<double> >(data_interface,u_prior_interface,z_prior_interface);
-    //HDSA::Ptr<HDSA::MultiVector<double> > prior_samples_at_z_opt = prior_sampling->Prior_Discrepancy_Samples_at_z_opt(num_prior_samples);
-  
-    //std::string name = "prior_discrepancy_evaluated_at_z_opt";
-    //prior_samples_at_z_opt->Write_to_File(name);
+    if(num_prior_samples > 0) {
+      HDSA::Ptr<HDSA::MD_Prior_Sampling<double> > prior_sampling = HDSA::makePtr<HDSA::MD_Prior_Sampling<double> >(data_interface,u_prior_interface,z_prior_interface);
+      HDSA::Ptr<HDSA::MultiVector<double> > prior_samples_at_z_opt = prior_sampling->Prior_Discrepancy_Samples_at_z_opt(num_prior_samples);
+    }
     
     HDSA::Ptr<HDSA::MD_Posterior_Sampling<double> > post_sampling = HDSA::makePtr<HDSA::MD_Posterior_Sampling<double> >(data_interface,u_prior_interface,z_prior_interface);
-    int num_post_samples = num_prior_samples;
-    double alpha_d = hdsaParams.sublist("MD Prior").get<double>("alpha_d", 1.0e-5);
+    int num_post_samples = hdsaParams.sublist("MD Posterior").get("Number Of Posterior Samples", num_prior_samples);
+    double alpha_d = hdsaParams.sublist("MD Posterior").get<double>("alpha_d", 1.0e-5);
     post_sampling->Compute_Posterior_Data(alpha_d,num_post_samples);
 
     HDSA::Ptr<HDSA::MD_Hessian_Analysis<double> > hessian_analysis = HDSA::makePtr<HDSA::MD_Hessian_Analysis<double> >(opt_prob_interface,z_prior_interface);
@@ -1720,21 +1797,131 @@ Piro::PerformHDSAAnalysis(
     oversampling = hdsaParams.sublist("MD Hessian Analysis").get<int>("Oversampling Factor", 10);
     hessian_analysis->Compute_Hessian_GEVP(data_interface->Get_z_opt(),num_evals,oversampling);
     
-    int num_continuation_steps = hdsaParams.sublist("MD Continuation Update").get("Number of Continuation Steps", 0); 
-    HDSA::Ptr<HDSA::MD_Update<double> > update = HDSA::makePtr<HDSA::MD_Update<double> >(data_interface,u_prior_interface,z_prior_interface,opt_prob_interface,post_sampling,hessian_analysis,random_number_generator,num_continuation_steps);
-  
-    //HDSA::Ptr<HDSA::MD_Posterior_Vectors<double> > posterior_update_samples = update->Posterior_Update_Samples();
-    //HDSA::Ptr<HDSA::Vector<double> > z_update = posterior_update_samples->mean;
+    int num_continuation_steps = hdsaParams.sublist("MD Continuation Update").get("Number Of Continuation Steps", 0); 
+    bool OED = hdsaParams.get("Perform HDSA Analysis With OED", false);
+    if(!OED) {
+      HDSA::Ptr<HDSA::MD_Update<double> > update = HDSA::makePtr<HDSA::MD_Update<double> >(data_interface,u_prior_interface,z_prior_interface,opt_prob_interface,post_sampling,hessian_analysis,random_number_generator,num_continuation_steps);
 
-    //Alternatively just compute the mean, no sampling needed
-    HDSA::Ptr<HDSA::Vector<double> > z_update = update->Posterior_Update_Mean();   
+      HDSA::Ptr<HDSA::Vector<double> > z_update;
+      if(num_post_samples > 0) {
+        HDSA::Ptr<HDSA::MD_Posterior_Vectors<double> > posterior_update_samples = update->Posterior_Update_Samples();
+        std::string name = "posterior_samples";
+        posterior_update_samples->samples->Write_to_File(name);
+        z_update = posterior_update_samples->mean;
+      } else {
+        //Alternatively just compute the mean, no sampling needed
+        z_update = update->Posterior_Update_Mean(); 
+      }
 
-    HDSA::ROL_Vector<double>& z_update_rol = dynamic_cast<HDSA::ROL_Vector<double>&>(*z_update);
-    //double norm_z_update_rol = z_update_rol.norm();
-    //*out <<  "\n\n Z Mean Norm: " << norm_z_update_rol <<std::endl;
-    rol_p_ptr->set(*z_update_rol.rol_vec);
+      HDSA::ROL_Vector<double>& z_update_rol = dynamic_cast<HDSA::ROL_Vector<double>&>(*z_update);
+      //double norm_z_update_rol = z_update_rol.norm();
+      //*out <<  "\n\n Z Mean Norm: " << norm_z_update_rol <<std::endl;
+      rol_p_ptr->set(*z_update_rol.rol_vec);
 
-    constr_ptr->solve(*c_ptr,*rol_x_ptr,*rol_p_ptr,tol);
+      constr_ptr->solve(*c_ptr,*rol_x_ptr,*rol_p_ptr,tol);
+    } else {
+      /*
+        OED setup and offline reduced matrix construction.
+      */
+      HDSA::Ptr<HDSA::MD_OED<double>> md_oed = HDSA::makePtr<HDSA::MD_OED<double>>(data_interface, u_prior_interface, z_prior_interface, hessian_analysis);
+      md_oed->Offline_Computation();
+      const int r = md_oed->Get_Reduced_Dimension();
+      const typename HDSA::MD_OED<double>::Offline_Data& offline = md_oed->Get_Offline_Data();
+
+      TEUCHOS_TEST_FOR_EXCEPTION(!offline.Is_Initialized(), std::logic_error, "Piro::PerformHDSAAnalysis, ERROR: OED offline data were not initialized." << std::endl);
+
+      int num_oed_steps = p_samples.size(); //OED will propose the next parameter sample for HF evaluation
+      double alpha_k_denom = Trace_Wz_Inverse_Mz(*data_interface->Get_z_opt(), *z_prior_interface);
+
+      typename HDSA::MD_OED<double>::SPG_Options spg_options;
+      spg_options.max_iter = hdsaParams.sublist("MD OED").get<int>("Max Number Of OED Iterations", 10);
+      spg_options.pg_tol = hdsaParams.sublist("MD OED").get("PG Tolerance", 1e-8);
+      spg_options.armijo_c = hdsaParams.sublist("MD OED").get("Armijo Coefficient", 1e-4);
+      spg_options.backtrack_factor = hdsaParams.sublist("MD OED").get("Backtrack Factor", 0.5);
+      spg_options.max_backtracks = hdsaParams.sublist("MD OED").get("Max Number Of Backtrack Steps", 0.5);
+      spg_options.nonmonotone_window = hdsaParams.sublist("MD OED").get<int>("Nonmonotone Window", 5);
+      spg_options.verbosity = hdsaParams.sublist("MD OED").get("Verbosity", false);
+
+      HDSA::Dense_Matrix<double> beta_0(r, 1);
+      beta_0.Zeros();
+
+      for (int i = 0; i < r; ++i) {
+        const double sign = (i % 2 == 0) ? static_cast<double>(1) : static_cast<double>(-1);
+        beta_0.Set_Entry(i, 0, sign * static_cast<double>(3e-2) * static_cast<double>(i + 1) / static_cast<double>(r));
+      }
+
+      HDSA::Ptr<HDSA::Dense_Matrix<double>> betas = HDSA::makePtr<HDSA::Dense_Matrix<double>>(0, 1);
+      std::vector<HDSA::Ptr<HDSA::Vector<double>>> z_bars;
+      HDSA::Ptr<HDSA::Vector<double>> z_lofi = data_interface->Get_z_opt()->Clone();
+      z_lofi->Set(*data_interface->Get_z_opt());
+      HDSA::Ptr<HDSA::Dense_Matrix<double>> current_beta_bar = HDSA::nullPtr;
+
+      *out << "\n=====================================================" << std::endl;
+      *out << "Beginning sequential OED workflow" << std::endl;
+      *out << "Reduced dimension r = " << r << std::endl;
+      *out << "Number of OED steps = " << num_oed_steps << std::endl;
+      *out << "=====================================================" << std::endl;
+
+      HDSA::Ptr<Piro::HDSA_MD_ROL_Data_Interface<double> > data_interface = HDSA::makePtr<Piro::HDSA_MD_ROL_Data_Interface<double> >(rol_opt_x_ptr, rol_opt_p_ptr);
+      for (int step = 0; step < num_oed_steps; ++step) {
+
+        auto p_sample = createProductVector(p_samples[step]);
+        ROL::Ptr<ROL::Vector<double> > rol_p_samples_ptr = ROL::makePtr<ROL::ThyraVector<double>>(p_sample);
+        ROL::Ptr<ROL::Vector<double> > rol_x_diffs_ptr = ROL::makePtr<ROL::ThyraVector<double>>(x_diff_at_samples[step]);
+        data_interface->Z_Data_push_back(rol_p_samples_ptr);
+        data_interface->Y_Data_push_back(rol_x_diffs_ptr);
+
+        HDSA::Ptr<HDSA::Vector<double>> u_k = data_interface->Get_u_opt()->Clone();
+        HDSA::Ptr<HDSA::Vector<double>> z_k = data_interface->Get_z_opt()->Clone();
+        HDSA::Ptr<HDSA::Vector<double>> beta_k = HDSA::makePtr<HDSA::Std_Vector<double>>(r);
+        HDSA::Ptr<HDSA::MD_Continuation_Update<double>> cont_update = HDSA::makePtr<HDSA::MD_Continuation_Update<double>>(
+            data_interface, z_prior_interface, opt_prob_interface, post_sampling, hessian_analysis, random_number_generator, num_continuation_steps);
+        *out << "About to comput the continuation update" << std::endl;
+        cont_update->Posterior_Update_Mean(*u_k, *z_k, *beta_k);
+
+        current_beta_bar = Vector_To_Dense(*beta_k);
+        z_bars.push_back(z_k);
+
+      
+        *out << "\nOED step " << step + 1 << " / " << num_oed_steps << std::endl;
+        *out << "-----------------------------------------------------" << std::endl;
+
+        HDSA::Ptr<HDSA::Vector<double>> z_p;
+        {
+          HDSA::Ptr<HDSA::Vector<double>> radius_reference;
+
+          if (step == 0) {
+            radius_reference = z_lofi;
+          } else {
+            radius_reference = z_bars[step - 1];
+          }
+
+          const double prev_z_distance = M_z_Norm_Difference(*z_bars.back(), *radius_reference, *z_prior_interface);
+          const double alpha_k = prev_z_distance * prev_z_distance / alpha_k_denom;
+          const double constr_radius = prev_z_distance;
+
+          *out << "Previous posterior movement radius = " << constr_radius << std::endl;
+          *out << "OED covariance coefficient alpha_k = " << alpha_k << std::endl;
+          md_oed->Set_Covariance_Coefficient(alpha_k);
+
+          typename HDSA::MD_OED<double>::Seq_Design_Result seq_result =
+              md_oed->Generate_Seq_Optimal_Design(beta_0, alpha_d, *betas, *current_beta_bar, constr_radius, spg_options);
+
+          betas = Append_Betas(*betas, *seq_result.beta_new);
+
+          *out << "Sequential OED final objective = " << seq_result.optimizer_info.final_objective << std::endl;
+          *out << "Sequential OED projected-gradient norm = " << seq_result.optimizer_info.projected_gradient_norm << std::endl;
+
+          z_p = (*seq_result.Z_new)[0]->Clone();
+          z_p->Set(*(*seq_result.Z_new)[0]);
+        }
+        //selected_designs.push_back(z_p);
+        HDSA::ROL_Vector<double>& z_p_rol = dynamic_cast<HDSA::ROL_Vector<double>&>(*z_p);
+        //double norm_z_p_rol = z_p_rol.Norm();
+        //*out <<  "\n\n Z Proposed Norm: " << norm_z_p_rol <<std::endl;
+        rol_p_ptr->set(*z_p_rol.rol_vec);
+      }
+    }
 
    if(Teuchos::nonnull(observer)) {
     const ROL::ThyraVector<double>  & thyra_x = dynamic_cast<const ROL::ThyraVector<double>&>(*rol_x_ptr);
