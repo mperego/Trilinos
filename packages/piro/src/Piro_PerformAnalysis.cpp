@@ -290,7 +290,7 @@ Piro::PerformROLSteadyAnalysis(
 
   ROL::Reduced_Objective_SimOpt<double> reduced_obj(obj_ptr,constr_ptr,rol_x_ptr,rol_p_ptr,rol_lambda_ptr);
 
-  int seed = rolParams.get<int>("Seed For Thyra Randomize", 42);
+  int seed = rolParams.get<int>("Seed For Thyra Randomize", 53);
 
   //! set initial guess (or use the one provided by the Model Evaluator)
   std::string init_guess_type = rolParams.get<string>("Parameter Initial Guess Type", "From Model Evaluator");
@@ -1197,6 +1197,46 @@ HDSA::Ptr<HDSA::Dense_Matrix<double>> Append_Betas(const HDSA::Dense_Matrix<doub
   return all_betas;
 }
 
+HDSA::Ptr<HDSA::Dense_Matrix<double>>
+Compute_Beta_From_z(
+    const HDSA::Vector<double>& z,
+    const HDSA::Vector<double>& z_opt,
+    const HDSA::MD_z_Prior_Interface<double>& z_prior_interface,
+    const HDSA::MD_OED<double>::Offline_Data& offline)
+{
+  const int r = offline.r;
+
+  // dz = z - z_opt
+  HDSA::Ptr<HDSA::Vector<double>> dz = z.Clone();
+  dz->Set(z);
+  dz->Scaled_Plus(-1.0, z_opt);
+
+  // M_z dz
+  HDSA::Ptr<HDSA::Vector<double>> Mz_dz = dz->Clone();
+  z_prior_interface.Apply_M_z(*Mz_dz, *dz);
+
+  // rhs = V^T M_z dz
+  HDSA::Dense_Matrix<double> rhs(r, 1);
+  rhs.Zeros();
+
+  for (int i = 0; i < r; ++i) {
+    rhs.Set_Entry(i, 0, (*offline.V)[i]->Dot(*Mz_dz));
+  }
+
+  // Solve
+  //
+  //   (V^T M_z V) beta = V^T M_z (z - z_opt)
+  //
+  HDSA::Ptr<HDSA::Dense_Matrix<double>> beta =
+      HDSA::makePtr<HDSA::Dense_Matrix<double>>(r, 1);
+  beta->Zeros();
+
+  HDSA::Linear_Algebra::Symmetric_Direct_Linear_Solve<double>(
+      *offline.Vt_Mz_V, *beta, rhs);
+
+  return beta;
+}
+
 double M_z_Norm_Difference(const HDSA::Vector<double>& a, const HDSA::Vector<double>& b,
                           const HDSA::MD_z_Prior_Interface<double>& z_prior_interface) {
   HDSA::Ptr<HDSA::Vector<double>> diff = a.Clone();
@@ -1651,12 +1691,12 @@ Piro::PerformHDSAAnalysis(
 
       Teko::BlockedLinearOp bH;
 
-      if (!useIdentityPriorEllOp && !model_PME.is_null()) {
+      if (!useIdentityPriorMassOp && !model_PME.is_null()) {
         bH = Teko::createBlockedOp();
         model_PME->block_diagonal_hessian_22(bH, *rol_x_ptr, *rol_p_ptr, prior_mass_reponse_index);
       }
      
-      if (!useIdentityPriorEllOp) {
+      if (!useIdentityPriorMassOp) {
         int numBlocks = bH->productRange()->numBlocks();  
         std::vector<Teko::LinearOp> diag(numBlocks);
         for (int i=0; i<numBlocks; ++i) {
@@ -1767,7 +1807,7 @@ Piro::PerformHDSAAnalysis(
 
     ::Thyra::seed_randomize<double>( 0 );
     dz0->Randomize_Standard_Normal();
-    ::Thyra::seed_randomize<double>( seed );
+    ::Thyra::seed_randomize<double>( 53 );
     HDSA::Ptr<HDSA::MD_u_Prior_Interface<double> > u_prior_interface = HDSA::makePtr<Piro::HDSA_MD_ROL_Elliptic_u_Prior_Interface<double> >(alpha_u,random_number_generator,invEllOp,massOp);
     HDSA::Ptr<HDSA::MD_z_Prior_Interface<double> > z_prior_interface = HDSA::makePtr<Piro::HDSA_MD_ROL_Elliptic_z_Prior_Interface<double> >(alpha_z,priorEllOp,invPriorEllOp,priorMassOp,invPriorMassOp, priorMassCholOp);
 
@@ -1843,6 +1883,178 @@ Piro::PerformHDSAAnalysis(
 
       TEUCHOS_TEST_FOR_EXCEPTION(!offline.Is_Initialized(), std::logic_error, "Piro::PerformHDSAAnalysis, ERROR: OED offline data were not initialized." << std::endl);
 
+
+      const int num_data_samples = static_cast<int>(p_samples.size());
+
+      TEUCHOS_TEST_FOR_EXCEPTION(num_data_samples == 0, std::logic_error,
+          "Piro::PerformHDSAAnalysis, ERROR: OED requires at least the initial data sample." << std::endl);
+
+      const double alpha_k_denom = Trace_Wz_Inverse_Mz(*data_interface->Get_z_opt(), *z_prior_interface);
+
+      typename HDSA::MD_OED<double>::SPG_Options spg_options;
+      spg_options.max_iter = hdsaParams.sublist("MD OED").get<int>("Max Number Of OED Iterations", 300);
+      spg_options.pg_tol = hdsaParams.sublist("MD OED").get("PG Tolerance", 1e-8);
+      spg_options.armijo_c = hdsaParams.sublist("MD OED").get("Armijo Coefficient", 1e-4);
+      spg_options.backtrack_factor = hdsaParams.sublist("MD OED").get("Backtrack Factor", 0.5);
+      spg_options.max_backtracks = hdsaParams.sublist("MD OED").get("Max Number Of Backtrack Steps", 30);
+      spg_options.nonmonotone_window = hdsaParams.sublist("MD OED").get<int>("Nonmonotone Window", 5);
+      spg_options.verbosity = hdsaParams.sublist("MD OED").get("Verbosity", false);
+
+      const int num_post_samples = hdsaParams.sublist("MD Posterior").get("Number Of Posterior Samples", num_prior_samples);
+      const double alpha_d = hdsaParams.sublist("MD Posterior").get<double>("alpha_d", 1.0e-5);
+
+      /*
+      * Initial guess for the OED optimization.
+      */
+      HDSA::Dense_Matrix<double> beta_0(r, 1);
+      beta_0.Zeros();
+
+      auto Mz_dz0 = dz0->Clone();
+      z_prior_interface->Apply_M_z(*Mz_dz0, *dz0);
+
+      const double dz0_Mz_norm = std::sqrt(dz0->Dot(*Mz_dz0));
+
+      TEUCHOS_TEST_FOR_EXCEPTION(!(dz0_Mz_norm > 0.0), std::logic_error,
+          "Piro::PerformHDSAAnalysis, ERROR: zero M_z norm for the OED initial direction." << std::endl);
+
+      const double scale = 1e-2 / dz0_Mz_norm;
+
+      for (int i = 0; i < r; ++i) {
+        const double beta_i =  scale * (*hessian_analysis->Get_Evecs())[i]->Dot(*Mz_dz0);
+        beta_0.Set_Entry(i, 0, beta_i);
+      }
+
+      /*
+      * betas contains the reduced coordinates of the previously proposed OED parameters: 
+      *   p_samples[1], p_samples[2], ...
+      *   p_samples[0] is z_opt and corresponds to beta = 0, which is included implicitly by the OED formulation.
+      */
+
+      HDSA::Ptr<HDSA::Dense_Matrix<double>> betas = HDSA::makePtr<HDSA::Dense_Matrix<double>>(0, 1);
+
+      std::vector<HDSA::Ptr<HDSA::Vector<double>>> z_bars;
+
+      HDSA::Ptr<HDSA::Vector<double>> z_lofi = data_interface->Get_z_opt()->Clone();
+      z_lofi->Set(*data_interface->Get_z_opt());
+
+      HDSA::Ptr<HDSA::Dense_Matrix<double>> current_beta_bar =  HDSA::nullPtr;
+
+      *out << "\n====================================================="
+          << std::endl;
+      *out << "Beginning sequential OED workflow" << std::endl;
+      *out << "Reduced dimension r = " << r << std::endl;
+      *out << "Number of available data samples = "
+          << num_data_samples << std::endl;
+      *out << "====================================================="
+          << std::endl;
+
+      HDSA::Ptr<HDSA::Vector<double>> hdsa_rol_p_ptr = HDSA::makePtr<HDSA::ROL_Vector<double>>(rol_p_ptr);
+
+      /*
+      * Replay only the posterior updates using the available data.
+      */
+      for (int step = 0; step < num_data_samples; ++step) {
+
+        auto p_sample = createProductVector(p_samples[step]);
+
+        ROL::Ptr<ROL::Vector<double>> rol_p_samples_ptr = ROL::makePtr<ROL::ThyraVector<double>>(p_sample);
+
+        ROL::Ptr<ROL::Vector<double>> rol_x_diffs_ptr = ROL::makePtr<ROL::ThyraVector<double>>(x_diff_at_samples[step]);
+
+        data_interface->Z_Data_push_back(rol_p_samples_ptr);
+        data_interface->Y_Data_push_back(rol_x_diffs_ptr);
+
+        /*
+        * Recover beta for a previously proposed OED parameter.
+        *
+        * sample 0 is z_opt, so beta_0_sample = 0.
+        */
+        if (step > 0) {
+
+          HDSA::Ptr<HDSA::Vector<double>> z_sample =  HDSA::makePtr<HDSA::ROL_Vector<double>>(rol_p_samples_ptr);
+
+          HDSA::Ptr<HDSA::Dense_Matrix<double>> beta_sample = Compute_Beta_From_z(*z_sample, *data_interface->Get_z_opt(), *z_prior_interface, offline);
+
+          betas = Append_Betas(*betas, *beta_sample);
+
+          /*
+          * Optional diagnostic: check how well the current reduced
+          * space represents the actual previously proposed parameter.
+          */
+          {
+            HDSA::Ptr<HDSA::Vector<double>> z_reconstructed = data_interface->Get_z_opt()->Clone();
+
+            z_reconstructed->Set(*data_interface->Get_z_opt());
+
+            for (int i = 0; i < r; ++i) {
+              z_reconstructed->Scaled_Plus((*beta_sample)(i, 0), *(*offline.V)[i]);
+            }
+
+            const double projection_error =  M_z_Norm_Difference(*z_sample, *z_reconstructed, *z_prior_interface);
+
+            *out << "Reduced-space projection error for sample "  << step << " = "  << projection_error << std::endl;
+          }
+        }
+
+        /*
+        * Recompute the discrepancy posterior using all samples available through this step.
+        */
+        HDSA::Ptr<HDSA::MD_Posterior_Sampling<double>> post_sampling =
+            HDSA::makePtr<HDSA::MD_Posterior_Sampling<double>>(data_interface, u_prior_interface, z_prior_interface);
+
+        post_sampling->Compute_Posterior_Data(alpha_d, num_post_samples);
+
+        HDSA::Ptr<HDSA::Vector<double>> u_k = data_interface->Get_u_opt()->Clone();
+        HDSA::Ptr<HDSA::Vector<double>> z_k = data_interface->Get_z_opt()->Clone();
+        HDSA::Ptr<HDSA::Vector<double>> beta_k = HDSA::makePtr<HDSA::Std_Vector<double>>(r);
+
+        HDSA::Ptr<HDSA::MD_Continuation_Update<double>> cont_update = HDSA::makePtr<HDSA::MD_Continuation_Update<double>>(
+          data_interface, z_prior_interface, opt_prob_interface, post_sampling, hessian_analysis, random_number_generator, num_continuation_steps, grad_tol);
+
+        *out << "\nPosterior update using "  << step + 1  << " data sample(s)"  << std::endl;
+
+        cont_update->Posterior_Update_Mean(*u_k, *z_k, *beta_k);
+        current_beta_bar = Vector_To_Dense(*beta_k);
+        z_bars.push_back(z_k);
+      }
+
+
+      /*
+      * Determine the next OED radius and alpha_k.
+      */
+      HDSA::Ptr<HDSA::Vector<double>> radius_reference;
+
+      if (num_data_samples == 1) {
+        radius_reference = z_lofi;
+      } else {
+        radius_reference = z_bars[num_data_samples - 2];
+      }
+
+      const double prev_z_distance = M_z_Norm_Difference(*z_bars.back(), *radius_reference, *z_prior_interface);
+      const double alpha_k = prev_z_distance * prev_z_distance / alpha_k_denom;
+      const double constr_radius = prev_z_distance;
+
+      *out << "\nNext OED proposal" << std::endl;
+      *out << "-----------------------------------------------------" << std::endl;
+      *out << "Previous posterior movement radius = " << constr_radius << std::endl;
+      *out << "OED covariance coefficient alpha_k = " << alpha_k << std::endl;
+
+      md_oed->Set_Covariance_Coefficient(alpha_k);
+      
+      typename HDSA::MD_OED<double>::Seq_Design_Result seq_result =
+          md_oed->Generate_Seq_Optimal_Design(beta_0, alpha_d, *betas, *current_beta_bar, constr_radius, spg_options);
+
+      *out << "Sequential OED final objective = " << seq_result.optimizer_info.final_objective  << std::endl;
+      *out << "Sequential OED projected-gradient norm = " << seq_result.optimizer_info.projected_gradient_norm  << std::endl;
+
+
+      /*
+      * Return the newly proposed parameter.
+      */
+      hdsa_rol_p_ptr->Set(*(*seq_result.Z_new)[0]);
+
+          
+      /*
       int num_oed_steps = p_samples.size(); //OED will propose the next parameter sample for HF evaluation
       double alpha_k_denom = Trace_Wz_Inverse_Mz(*data_interface->Get_z_opt(), *z_prior_interface);
 
@@ -1863,7 +2075,7 @@ Piro::PerformHDSAAnalysis(
       {
           auto Mz_dz0 = dz0->Clone();
           z_prior_interface->Apply_M_z(*Mz_dz0, *dz0);
-          double scale = 1e-3/std::sqrt(dz0->Dot(*Mz_dz0));
+          double scale = 1e-1/std::sqrt(dz0->Dot(*Mz_dz0));
 
           const double beta_i = scale*(*hessian_analysis->Get_Evecs())[i]->Dot(*Mz_dz0);
 
@@ -1941,10 +2153,11 @@ Piro::PerformHDSAAnalysis(
             hdsa_rol_p_ptr->Set(*(*seq_result.Z_new)[0]);
           }
         }
-      }
+      } 
       //double norm_z_p_rol = z_p_rol.Norm();
-      //*out <<  "\n\n Z Proposed Norm: " << norm_z_p_rol <<std::endl;
-    }
+      // *out <<  "\n\n Z Proposed Norm: " << norm_z_p_rol <<std::endl;
+      */
+    } 
 
    if(Teuchos::nonnull(observer)) {
     const ROL::ThyraVector<double>  & thyra_x = dynamic_cast<const ROL::ThyraVector<double>&>(*rol_x_ptr);
