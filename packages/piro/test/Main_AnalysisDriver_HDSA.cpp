@@ -81,10 +81,6 @@ int main(int argc, char *argv[]) {
   // Initialize MPI
   Teuchos::GlobalMPISession mpiSession(&argc,&argv);
   int Proc=mpiSession.getRank();
-
-  HDSA::ROL_Vector<double>::nr = ROL::Elementwise::NormalRandom<double>(0.0,1.0,42+Proc);
-
-
   auto appComm = Tpetra::getDefaultComm();
 
   using Teuchos::RCP;
@@ -100,9 +96,9 @@ int main(int argc, char *argv[]) {
     double expectedRelErr = 0;
     if (doAll) {
       switch (iTest) {
-       case 0: inputFile="input_Analysis_HDSA.xml"; expectedRelErr = 0.002104083; break;
-       case 1: inputFile="input_Analysis_HDSA_continuation.xml"; expectedRelErr = 0.001648245; break;
-       case 2: inputFile="input_Analysis_HDSA_OED.xml"; expectedRelErr = 0.0002696868; break;
+       case 0: inputFile="input_Analysis_HDSA.xml"; expectedRelErr = 0.002104904; break;
+       case 1: inputFile="input_Analysis_HDSA_continuation.xml"; expectedRelErr = 0.001646949; break;
+       case 2: inputFile="input_Analysis_HDSA_OED.xml"; expectedRelErr = 0.0002145775; break;
        default : std::cout << "iTest logic error " << std::endl; exit(-1);
       }
     }
@@ -193,13 +189,14 @@ int main(int argc, char *argv[]) {
         if(performAnalysisWithOED) {
           const int number_OED_steps = piroParams->sublist("Analysis").sublist("HDSA").get<int>("Number Of OED Steps", 1);
           for (int oed_steps=0; oed_steps<number_OED_steps; oed_steps++) {              
-            status = Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
+            status += Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
             if(Teuchos::nonnull(model_H)) {
               p_samples.push_back(p->clone_v());
               u_diff_at_samples.push_back(model_H->get_solution_diff_at_param(p_samples.back()));
             }
           }
           piroParams->sublist("Analysis").sublist("HDSA").set("Perform HDSA Analysis With OED", false);
+          status += Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
         } else {
           if(Teuchos::nonnull(model_H)) {
             for (int k=1; k<2; k++) {
@@ -207,10 +204,10 @@ int main(int argc, char *argv[]) {
               u_diff_at_samples.push_back(model_H->get_solution_diff_at_samples(k));
             }
           }
+          //the parameter nominal value in modelWithSolve is supposed to be the same as p_opt (low fidelity optimal paramer) 
+          status += Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
         }
 
-        //RCP<Thyra::VectorBase<double>> p;  //the parameter nominal value in modelWithSolve is supposed to be the same as p_opt (low fidelity optimal paramer) 
-        status = Piro::PerformAnalysis(*piro, *piroParams, p, Teuchos::null, u_diff_at_samples, p_samples);
         Teuchos::RCP<const Thyra::ProductVectorBase<double> > p_prodvec = Teuchos::rcp_dynamic_cast<Thyra::ProductVectorBase<double>>(p);
 
         auto p_opt_vec = ConverterT::getConstTpetraVector(p_opt);
