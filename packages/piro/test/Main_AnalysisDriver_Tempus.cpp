@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
         if (mockModel=="MockModelEval_B_Tpetra" && inputFile != "input_Analysis_ROL_ReducedSpace_Transient.xml") {
           continue;
         }
-        if (mockModel=="MassSpringDamperModel" && inputFile != "input_Analysis_ROL_ReducedSpace_Transient_MSD.xml" && inputFile != "input_Analysis_ROL_Tempus_Transient_MSD.xml" && inputFile != "input_Analysis_ROL_ReducedSpace_Transient_Integrated_Response_MSD.xml") {
+        if (mockModel=="MassSpringDamperModel" && inputFile.find("_MSD") == std::string::npos) {
           continue;
         }
         if (mockModel=="MassSpringDamperModel" && appComm->getSize() > 1) {
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
           RCP<Thyra::ModelEvaluator<double>> model_tmp = rcp(new MassSpringDamperModel(comm,false,probParams,true,probParams->get<bool>("Response Depends On Solution Time Derivative", false)));
           model = rcp(new Piro::ProductModelEvaluator<double>(model_tmp,p_indices));
           if(explicitAdjointME) {
-            RCP<Thyra::ModelEvaluator<double>> adjointModel_tmp = rcp(new MassSpringDamperModel(comm,true,Teuchos::null,false,probParams->get<bool>("Response Depends On Solution Time Derivative", false)));
+            RCP<Thyra::ModelEvaluator<double>> adjointModel_tmp = rcp(new MassSpringDamperModel(comm,true,probParams,false,probParams->get<bool>("Response Depends On Solution Time Derivative", false)));
             adjointModel = rcp(new Piro::ProductModelEvaluator<double>(adjointModel_tmp,p_indices));
           }
           modelName = "MSD";
@@ -245,6 +245,18 @@ int main(int argc, char *argv[]) {
             p_exact[1] = 0.5;
           } else {
            TEUCHOS_ASSERT(false);
+          }
+
+          // An input file can provide the expected optimum and the tolerance in a "Test" sublist
+          if (appParams->isSublist("Test")) {
+            Teuchos::ParameterList& testParams = appParams->sublist("Test");
+            if (testParams.isParameter("Expected Optimal Parameters")) {
+              const auto expected = testParams.get<Teuchos::Array<double>>("Expected Optimal Parameters");
+              TEUCHOS_ASSERT(expected.size() == 2);
+              p_exact[0] = expected[0];
+              p_exact[1] = expected[1];
+            }
+            tol = testParams.get<double>("Tolerance", tol);
           }
 
           double l2_diff = std::sqrt(std::pow(p_view(0)-p_exact[0],2) + std::pow(p_view(1)-p_exact[1],2));

@@ -31,6 +31,7 @@
 #include "ROL_ThyraVector.hpp"
 
 #include "Piro_TempusIntegrator.hpp"
+#include "Piro_TempusSolver.hpp"
 
 namespace Piro {
 
@@ -135,7 +136,26 @@ ThyraProductME_TempusFinalObjective(
   tempus_params_(Teuchos::rcp<Teuchos::ParameterList>(new Teuchos::ParameterList(piroParams.sublist("Tempus")))),
   time_final_(piroParams.get<Real>("Final Time", 1.))
 {
-  
+  // Integrate to the final time of the Tempus time step control used by the Piro::TempusSolver.
+  time_final_ = piroTempusSolver->getFinalTime();
+
+  // The adjoint integrator differentiates the response and parameter selected in the
+  // Tempus "Sensitivities" sublist. Make sure they are the objective response and the
+  // control (parameter 0 of the product model evaluator), otherwise value() and
+  // gradient() would refer to different functions.
+  Teuchos::ParameterList& sensPL = tempus_params_->sublist("Sensitivities");
+  if (sensPL.isParameter("Response Function Index") && sensPL.get<int>("Response Function Index") != g_index_) {
+    *out_ << "WARNING: Piro::ThyraProductME_TempusFinalObjective: overriding Tempus->Sensitivities->"
+          << "\"Response Function Index\" = " << sensPL.get<int>("Response Function Index")
+          << " with the ROL \"Response Vector Index\" = " << g_index_ << std::endl;
+  }
+  sensPL.set<int>("Response Function Index", g_index_);
+  if (sensPL.isParameter("Sensitivity Parameter Index") && sensPL.get<int>("Sensitivity Parameter Index") != 0) {
+    *out_ << "WARNING: Piro::ThyraProductME_TempusFinalObjective: overriding Tempus->Sensitivities->"
+          << "\"Sensitivity Parameter Index\" = " << sensPL.get<int>("Sensitivity Parameter Index")
+          << " with 0, the index of the optimization parameters in the product model evaluator" << std::endl;
+  }
+  sensPL.set<int>("Sensitivity Parameter Index", 0);
 }
 
 template <typename Real>

@@ -12,7 +12,12 @@
 #include "Piro_PerformSolve.hpp"
 
 #include "Teuchos_FancyOStream.hpp"
+#include "Teuchos_DefaultComm.hpp"
+#include <algorithm>
+#include <cmath>
+#include <fstream>
 #include <iostream>
+#include <streambuf>
 #include <string>
 #include "Thyra_DetachedVectorView.hpp"
 #include "Thyra_DefaultProductVectorSpace.hpp"
@@ -75,6 +80,48 @@
 using std::cout; using std::endl; using std::string;
 using Teuchos::RCP; using Teuchos::rcp; using Teuchos::ParameterList;
 using Teuchos::null; using Teuchos::outArg;
+
+namespace {
+
+// Redirects std::cout for the lifetime of the object and restores it in the
+// destructor, so std::cout is also restored when an exception propagates.
+// Rank 0 writes to the given file; the other ranks discard the output, so that
+// the ranks do not overwrite each other's file.
+class CoutRedirect {
+public:
+  CoutRedirect(bool enable, const std::string& filename) {
+    if (!enable) return;
+    std::streambuf* buffer = &nullBuffer_;
+    if (Teuchos::DefaultComm<int>::getComm()->getRank() == 0) {
+      file_.open(filename);
+      if (!file_.is_open()) {
+        std::cout << "WARNING: Piro::PerformAnalysis: could not open \"" << filename
+                  << "\", Tempus output is not redirected." << std::endl;
+        return;
+      }
+      buffer = file_.rdbuf();
+    }
+    savedBuffer_ = std::cout.rdbuf(buffer);
+  }
+
+  ~CoutRedirect() {
+    if (savedBuffer_ != nullptr) std::cout.rdbuf(savedBuffer_);
+  }
+
+  CoutRedirect(const CoutRedirect&) = delete;
+  CoutRedirect& operator=(const CoutRedirect&) = delete;
+
+private:
+  struct NullBuffer : public std::streambuf {
+    int overflow(int c) override { return traits_type::not_eof(c); }
+  };
+
+  std::ofstream file_;
+  NullBuffer nullBuffer_;
+  std::streambuf* savedBuffer_ = nullptr;
+};
+
+} // namespace
 
 template<class CharT, class Traits>
 const std::stringstream& 
@@ -854,12 +901,14 @@ Piro::PerformROLTransientAnalysis(
 
   auto tempus_params = Teuchos::rcp<Teuchos::ParameterList>(new Teuchos::ParameterList(piroParams.sublist("Tempus")));
 
-  std::string integratorName = tempus_params->get<std::string>("Integrator Name");
-  double t_0 = tempus_params->sublist(integratorName).sublist("Time Step Control").get<double>("Initial Time");
-  double t_f = tempus_params->sublist(integratorName).sublist("Time Step Control").get<double>("Final Time");
-  double dt = tempus_params->sublist(integratorName).sublist("Time Step Control").get<double>("Initial Time Step");
-  int nt = (t_f-t_0)/dt;
-  auto timeStamps = ROL::TimeStamp<double>::make_uniform(t_0,t_f,{0.0,1.0},nt);
+  // Time interval and step of the Tempus time step control used by the Piro::TempusSolver
+  // (this accounts for Tempus defaults, "Number of Time Steps" and the Albany time step
+  // control options).
+  const double t_0 = piroTempusSolver->getStartTime();
+  const double t_f = piroTempusSolver->getFinalTime();
+  const double dt = piroTempusSolver->getInitTimeStep();
+  const double nt_real = (t_f-t_0)/dt;
+  const int nt = static_cast<int>(std::lround(nt_real));
 
 
   // Create FORWARD Tempus Integrator from ModelEvaluator.
@@ -939,6 +988,9 @@ Piro::PerformROLTransientAnalysis(
   ::Thyra::put_scalar<double>( 1.0, scaling_vector_p.ptr());
   ROL::PrimalScaledThyraVector<double> rol_p_primal(p, scaling_vector_p);
 
+  const bool redirectTempusOutput = rolParams.get<bool>("Redirect Tempus Output", true);
+  const std::string tempusOutputFilename = rolParams.get<string>("Tempus Output Filename", "log_tempus.txt");
+
   if(useTempusDriver) {
 
     ROL::Ptr<ROL::Objective<double> > obj_ptr = ROL::makePtr<Piro::ThyraProductME_TempusFinalObjective<double>>(model, piroTempusSolver, forward_integrator, adjoint_integrator, adjointModel, g_index, piroParams, nt, analysisVerbosityLevel, observer);
@@ -960,16 +1012,9 @@ Piro::PerformROLTransientAnalysis(
         *out << "Piro::PerformROLTransientAnalysis: Solving Reduced Space Bound Constrained Optimization Problem" << std::endl;
         auto algo = ROL::TypeB::AlgorithmFactory<double>(rolParams.sublist("ROL Options"));
 
-        std::streambuf *coutbuf = NULL;
-        std::ofstream out_file;
-        if(rolParams.get<bool>("Redirect Tempus Output", true)) {
-          out_file.open(rolParams.get<string>("Tempus Output Filename", "log_tempus.txt"));
-          coutbuf = std::cout.rdbuf();
-          std::cout.rdbuf(out_file.rdbuf());
-        }
-        algo->run(rol_p_primal, *obj_ptr, *boundConstraint, *rolOutput);
-        if(rolParams.get<bool>("Redirect Tempus Output", true)) {
-          std::cout.rdbuf(coutbuf);
+        {
+          CoutRedirect redirect(redirectTempusOutput, tempusOutputFilename);
+          algo->run(rol_p_primal, *obj_ptr, *boundConstraint, *rolOutput);
         }
 
         return_status = algo->getState()->statusFlag;
@@ -977,16 +1022,9 @@ Piro::PerformROLTransientAnalysis(
         *out << "Piro::PerformROLTransientAnalysis: Solving Reduced Space Unconstrained Optimization Problem" << std::endl;
         auto algo = ROL::TypeU::AlgorithmFactory<double>(rolParams.sublist("ROL Options"));
         
-        std::streambuf *coutbuf = NULL;
-        std::ofstream out_file;
-        if(rolParams.get<bool>("", true)) {
-          out_file.open(rolParams.get<string>("Tempus Output Filename", "log_tempus.txt"));
-          coutbuf = std::cout.rdbuf();
-          std::cout.rdbuf(out_file.rdbuf());
-        }
-        algo->run(rol_p_primal, *obj_ptr, *rolOutput);
-        if(rolParams.get<bool>("Redirect Tempus Output", true)) {
-          std::cout.rdbuf(coutbuf);
+        {
+          CoutRedirect redirect(redirectTempusOutput, tempusOutputFilename);
+          algo->run(rol_p_primal, *obj_ptr, *rolOutput);
         }
 
         return_status = algo->getState()->statusFlag;
@@ -1034,16 +1072,9 @@ Piro::PerformROLTransientAnalysis(
           steps[li] = pow(ten,static_cast<double>(-li-1));
         }
 
-        std::streambuf *coutbuf = NULL;
-        std::ofstream out_file;
-        if(rolParams.get<bool>("Redirect Tempus Output", true)) {
-          out_file.open(rolParams.get<string>("Tempus Output Filename", "log_tempus.txt"));
-          coutbuf = std::cout.rdbuf();
-          std::cout.rdbuf(out_file.rdbuf());
-        }
-        obj_ptr->checkGradient(rol_p_primal, rol_p_primal.dual(), *rol_p_direction1, steps, true, *rolOutput, 1);
-        if(rolParams.get<bool>("Redirect Tempus Output", true)) {
-          std::cout.rdbuf(coutbuf);
+        {
+          CoutRedirect redirect(redirectTempusOutput, tempusOutputFilename);
+          obj_ptr->checkGradient(rol_p_primal, rol_p_primal.dual(), *rol_p_direction1, steps, true, *rolOutput, 1);
         }
 
         if(analysisVerbosity > 1)  //write recap of optimization convergence
@@ -1054,7 +1085,30 @@ Piro::PerformROLTransientAnalysis(
     return return_status;
   }
   else {
-    ROL::Ptr<ROL::DynamicObjective<double> > obj_ptr = ROL::makePtr<Piro::ThyraProductME_ROL_DynamicObjective<double>>(model, forward_integrator, adjoint_integrator, adjointModel, g_index, piroParams, nt, useFinalTimeStepResponse, true, analysisVerbosityLevel, observer);
+    // The ROL dynamic-constraint approach uses a uniform time grid.
+    TEUCHOS_TEST_FOR_EXCEPTION(
+        (nt < 1) || (std::abs(nt_real - nt) > 1e-8*std::max(1.0, nt_real)),
+        Teuchos::Exceptions::InvalidParameter,
+        std::endl << "Piro::PerformROLTransientAnalysis, ERROR: " <<
+        "(Final Time - Initial Time) = " << t_f-t_0 << " must be an integer multiple of the " <<
+        "time step " << dt << " when \"Tempus Driver\" is false." << std::endl);
+    const std::string stepType = piroTempusSolver->getNonconstPiroTempusIntegrator()->getTimeStepControl()->getStepType();
+    if (stepType != "Constant")
+      *out << "WARNING: Piro::PerformROLTransientAnalysis: Tempus 'Step Type' is '" << stepType <<
+              "', but the ROL dynamic-constraint approach uses the constant time step " << (t_f-t_0)/nt << std::endl;
+
+    // ROL::ReducedDynamicObjective takes the initial state to be the state at the end of
+    // time stamp 0 and only integrates over time stamps 1,...,N-1. Hence, time stamp 0
+    // is the (not integrated) interval ending at t_0 and time stamps 1,...,nt cover [t_0, t_f].
+    const double dt_rol = (t_f-t_0)/nt;
+    auto timeStamps = ROL::makePtr<std::vector<ROL::TimeStamp<double>>>(nt+1);
+    for (int k = 0; k <= nt; ++k) {
+      (*timeStamps)[k].k = k;
+      (*timeStamps)[k].t = {t_0 + (k-1)*dt_rol, t_0 + k*dt_rol};
+    }
+    const int numTimeStamps = timeStamps->size();
+
+    ROL::Ptr<ROL::DynamicObjective<double> > obj_ptr = ROL::makePtr<Piro::ThyraProductME_ROL_DynamicObjective<double>>(model, forward_integrator, adjoint_integrator, adjointModel, g_index, piroParams, numTimeStamps, useFinalTimeStepResponse, true, analysisVerbosityLevel, observer);
     ROL::Ptr<ROL::DynamicConstraint<double> > constr_ptr = ROL::makePtr<Piro::ThyraProductME_ROL_DynamicConstraint<double>>(forward_integrator, adjoint_integrator, adjointModel, piroParams, analysisVerbosityLevel, observer);
 
     constr_ptr->setSolveParameters(rolParams.sublist("ROL Options"));
@@ -1069,7 +1123,7 @@ Piro::PerformROLTransientAnalysis(
     else {
       auto reduced_obj_ptr = ROL::makePtr<ROL::ReducedDynamicObjective<double>>(obj_ptr,constr_ptr,rol_x_ptr,rol_p_ptr,rol_lambda_ptr, *timeStamps, piroParams);
 
-      ROL::ReducedDynamicStationaryControlsObjective<double> reduced_stationarycontrols_obj(reduced_obj_ptr, rol_p_ptr, nt);
+      ROL::ReducedDynamicStationaryControlsObjective<double> reduced_stationarycontrols_obj(reduced_obj_ptr, rol_p_ptr, numTimeStamps);
 
       if(rolParams.get<bool>("Perform Optimization", true)) {
         if(boundConstrained) {
