@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <fenv.h>
+#include <cmath>
 
 #include "MockModelEval_A_Tpetra.hpp"
 #include "MockModelEval_B_Tpetra.hpp"
@@ -20,6 +21,7 @@
 #include "Piro_ProviderHelpers.hpp"
 
 #include "Piro_PerformAnalysis.hpp"
+#include "Piro_ROL_ObserverBase.hpp"
 
 #include "Teuchos_XMLParameterListHelpers.hpp"
 #include "Teuchos_Assert.hpp"
@@ -43,6 +45,32 @@
 #include "Piro_TempusSolver.hpp"
 #include "Tempus_StepperFactory.hpp"
 #endif
+
+// ROL observer recording the observed solutions, to check that the transient
+// optimization calls the observer with the state at the final time.
+class RecordingROLObserver : public Piro::ROL_ObserverBase<double> {
+public:
+  using Piro::ROL_ObserverBase<double>::observeSolution;
+
+  void observeSolution(double stamp, const Thyra::VectorBase<double>& solution,
+                       const Teuchos::Ptr<const Thyra::MultiVectorBase<double>>& /*solution_dxdp*/,
+                       const Teuchos::Ptr<const Thyra::VectorBase<double>>& /*solutionDot*/,
+                       const Teuchos::Ptr<const Thyra::VectorBase<double>>& /*solutionDotDot*/) override {
+    ++numSolutions;
+    lastStamp = stamp;
+    lastSolutionNorm = Thyra::norm_2(solution);
+  }
+
+  void observeResponse(int /*iter*/) override { ++numResponses; }
+
+  void parametersChanged() override { ++numParametersChanged; }
+
+  int numSolutions = 0;
+  int numResponses = 0;
+  int numParametersChanged = 0;
+  double lastStamp = -1;
+  double lastSolutionNorm = 0;
+};
 
 const Teuchos::RCP<Piro::TempusSolver<double> > solverNew(
     const Teuchos::RCP<Teuchos::ParameterList>  piroParams,
@@ -98,7 +126,7 @@ int main(int argc, char *argv[]) {
 
       for (auto mockModel : mockModels) {
 
-        if (mockModel=="MockModelEval_B_Tpetra_2_parameters" && inputFile != "input_Analysis_ROL_ReducedSpace_Transient_2_parameters.xml") {
+        if (mockModel=="MockModelEval_B_Tpetra_2_parameters" && inputFile.find("_2_parameters") == std::string::npos) {
           continue;
         }
         if (mockModel=="MockModelEval_A_Tpetra" && inputFile != "input_Analysis_ROL_ReducedSpace_Transient.xml") {
@@ -222,7 +250,23 @@ int main(int argc, char *argv[]) {
 
         // Call the analysis routine
         RCP<Thyra::VectorBase<double>> p;
-        status = Piro::PerformAnalysis(*piro, *piroParams, p);
+        const auto observer = Teuchos::rcp(new RecordingROLObserver());
+        status = Piro::PerformAnalysis(*piro, *piroParams, p, observer);
+
+        // The observer is called with the final state for the initial guess and for the accepted iterates
+        const bool performOptimization = piroParams->sublist("Analysis").sublist("ROL").get<bool>("Perform Optimization", true);
+        if (performOptimization && Teuchos::nonnull(p)) {
+          if ((observer->numSolutions < 2) || (observer->numResponses != observer->numSolutions) ||
+              !std::isfinite(observer->lastSolutionNorm) || (observer->lastSolutionNorm <= 0.0)) {
+            status += 10;
+            if (Proc==0)
+              std::cout << "\nPiro_AnalysisDriver: unexpected observer calls: " << observer->numSolutions << " solutions, "
+                        << observer->numResponses << " responses, last solution norm " << observer->lastSolutionNorm << std::endl;
+          }
+          else if (Proc==0)
+            std::cout << "\nPiro_AnalysisDriver: observer called with " << observer->numSolutions << " solutions, last iteration "
+                      << observer->lastStamp << ", parameters changed " << observer->numParametersChanged << " times" << std::endl;
+        }
 
         if (Teuchos::nonnull(p)) { //p might be null if the package ROL is not enabled
           Thyra::DetachedVectorView<double> p_view(p);

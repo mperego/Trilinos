@@ -207,6 +207,10 @@ ThyraProductME_ROL_DynamicObjective(
     std::endl << "Piro::ThyraProductME_ROL_DynamicObjective: time-integrated responses are "
     "only implemented with the trapezoidal rule." << std::endl);
 
+  TEUCHOS_TEST_FOR_EXCEPTION(thyra_model_->get_g_space(g_index_)->dim() != 1, Teuchos::Exceptions::InvalidParameter,
+    std::endl << "Piro::ThyraProductME_ROL_DynamicObjective: the objective response " << g_index_ <<
+    " has dimension " << thyra_model_->get_g_space(g_index_)->dim() << ", but it must be a scalar." << std::endl);
+
   const MEB::OutArgs<Real> outArgs = thyra_model_->createOutArgs();
 
   TEUCHOS_TEST_FOR_EXCEPTION(
