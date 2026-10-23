@@ -315,6 +315,55 @@ void addResponseTimeEvents(TimeStepControl<Scalar>& tsc,
       new TimeEventList<Scalar>(times, "Response Time List", true)));
 }
 
+/** \brief Remove from Tempus parameters the objects of the forward problem
+ *  stored in the parameters of the stepper's nonlinear solver (NOX).
+ *
+ *  The NOX solver of a stepper is given the "NOX" sublist of the user's
+ *  parameters, and NOX stores in it objects built for the forward problem:
+ *  with "Function Scaling" = "Row Sum", the observer that computes the
+ *  scaling ("Solver Options"->"User Defined Pre/Post Operator") and the merit
+ *  function ("Solver Options"->"User Defined Merit Function"), with vectors in
+ *  the residual space of the forward problem.  A solver built later with the
+ *  same parameters keeps these objects (the observer is chained with its own),
+ *  which fails for a problem with another residual space, as the adjoint
+ *  problem.  Applied to a copy of the parameters of the adjoint integrator,
+ *  this removes these entries, and a "User Defined Scaling" vector
+ *  ("Thyra Group Options", replaced by "Function Scaling" = "None"): user
+ *  defined NOX observers and scaling of the forward problem are not used by
+ *  the adjoint integration.
+ */
+inline void removeForwardSolverObjects(Teuchos::ParameterList& tempusPL)
+{
+  if (!tempusPL.isType<std::string>("Integrator Name")) return;
+  const std::string integratorName =
+      tempusPL.get<std::string>("Integrator Name");
+  if (!tempusPL.isSublist(integratorName)) return;
+  Teuchos::ParameterList& integratorPL = tempusPL.sublist(integratorName);
+  if (!integratorPL.isType<std::string>("Stepper Name")) return;
+  const std::string stepperName = integratorPL.get<std::string>("Stepper Name");
+  if (!tempusPL.isSublist(stepperName)) return;
+  Teuchos::ParameterList& stepperPL = tempusPL.sublist(stepperName);
+  if (!stepperPL.isType<std::string>("Solver Name")) return;
+  const std::string solverName = stepperPL.get<std::string>("Solver Name");
+  if (!stepperPL.isSublist(solverName) ||
+      !stepperPL.sublist(solverName).isSublist("NOX"))
+    return;
+  Teuchos::ParameterList& noxPL = stepperPL.sublist(solverName).sublist("NOX");
+
+  if (noxPL.isSublist("Solver Options")) {
+    Teuchos::ParameterList& optionsPL = noxPL.sublist("Solver Options");
+    optionsPL.remove("User Defined Pre/Post Operator", false);
+    optionsPL.remove("User Defined Merit Function", false);
+  }
+  if (noxPL.isSublist("Thyra Group Options")) {
+    Teuchos::ParameterList& groupPL = noxPL.sublist("Thyra Group Options");
+    if (groupPL.isType<std::string>("Function Scaling") &&
+        groupPL.get<std::string>("Function Scaling") == "User Defined")
+      groupPL.set<std::string>("Function Scaling", "None");
+    groupPL.remove("User Defined Scaling", false);
+  }
+}
+
 }  // namespace AdjointSensitivityUtils
 }  // namespace Tempus
 

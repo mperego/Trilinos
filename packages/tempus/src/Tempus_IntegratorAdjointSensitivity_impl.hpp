@@ -872,8 +872,14 @@ createIntegratorAdjointSensitivity(
   auto shPL                      = Teuchos::sublist(integratorPL, "Solution History", true);
   auto combined_solution_History = createSolutionHistoryPL<Scalar>(shPL);
 
+  // The adjoint integrator uses a copy of the parameters, without the objects
+  // of the forward problem that the nonlinear solver of the forward stepper
+  // stores in them (e.g., for NOX row sum scaling), which do not apply to the
+  // adjoint problem (see AdjointSensitivityUtils::removeForwardSolverObjects).
+  auto adjointPL = Teuchos::rcp(new Teuchos::ParameterList(*inputPL));
+  AdjointSensitivityUtils::removeForwardSolverObjects(*adjointPL);
   auto adjoint_integrator =
-      createIntegratorBasic<Scalar>(inputPL, adjoint_aux_model);
+      createIntegratorBasic<Scalar>(adjointPL, adjoint_aux_model);
 
   Teuchos::RCP<IntegratorAdjointSensitivity<Scalar>> integrator =
       Teuchos::rcp(new IntegratorAdjointSensitivity<Scalar>(
