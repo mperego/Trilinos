@@ -242,6 +242,10 @@ private:
   Real time_initial_;
   Real time_final_;
 
+  //! Makes the initial state consistent with the parameters (see
+  //! Piro::TempusSolver::setConsistentInitialStateFunction); empty if not set
+  typename Piro::TempusSolver<Real>::ConsistentInitialStateFunction consistentInitialState_;
+
   Tempus::AdjointResponseType responseType_;
   std::vector<Real> responseTimes_;
   bool checkedDgDxDot_;
@@ -283,6 +287,10 @@ ThyraProductME_TempusFinalObjective(
   // Integrate to the final time of the Tempus time step control used by the Piro::TempusSolver.
   time_initial_ = piroTempusSolver->getStartTime();
   time_final_ = piroTempusSolver->getFinalTime();
+
+  // Each integration starts from the nominal initial state, made consistent with the
+  // parameters if the Piro::TempusSolver has a function for it.
+  consistentInitialState_ = piroTempusSolver->getConsistentInitialStateFunction();
 
   // The adjoint integrator differentiates the response and parameter selected in the
   // Tempus "Sensitivities" sublist. Make sure they are the objective response and the
@@ -434,6 +442,18 @@ run_tempus(const Teuchos::RCP<const Thyra::VectorBase<Real>>& p,
   // Override the nominal parameters of the model with p
   MEB::InArgs<Real> inArgs = thyra_model_->getNominalValues();
   inArgs.set_p(0, p);
+  // Initial state consistent with p (e.g., the algebraic components of a DAE: the
+  // continuous adjoint evaluates the model at the initial state in its last step)
+  if (consistentInitialState_) {
+    TEUCHOS_TEST_FOR_EXCEPTION(inArgs.get_x().is_null(), std::logic_error,
+      std::endl << "Piro::ThyraProductME_TempusFinalObjective: the model has no nominal initial state x "
+      "to make consistent." << std::endl);
+    MEB::InArgs<Real> icInArgs = inArgs;
+    if (icInArgs.supports(MEB::IN_ARG_t)) icInArgs.set_t(time_initial_);
+    const RCP<Thyra::VectorBase<Real>> x0 = inArgs.get_x()->clone_v();
+    consistentInitialState_(thyra_model_, icInArgs, *x0);
+    inArgs.set_x(x0);
+  }
   const RCP<const MEB::InArgs<Real>> nominalValues = rcp(new MEB::InArgs<Real>(inArgs));
   RCP<DNBOME> wrapped_model = rcp(new DNBOME(thyra_model_, nominalValues));
   // If the adjoint model is null, Tempus uses an implicit adjoint model.
