@@ -19,6 +19,7 @@
 #include "Intrepid2_ConfigDefs.hpp"
 #include "Intrepid2_Types.hpp"
 #include "Intrepid2_Utils.hpp"
+#include "Intrepid2_ViewConcepts.hpp"
 
 #include "Intrepid2_BasisValues.hpp"
 #include "Intrepid2_CellTopologyTags.hpp"
@@ -481,6 +482,31 @@ using HostBasisPtr = BasisPtr<typename Kokkos::HostSpace::device_type, OutputTyp
       const PointViewType  inputPoints,
       const EOperator      operatorType  = OPERATOR_VALUE
     ) const {
+      this->getValues(ExecutionSpace{}, outputValues, inputPoints, operatorType);
+    }
+
+    /** \brief  PROTOTYPE.  Evaluation of a FEM basis on a <strong>reference cell</strong>, with static-rank
+                Kokkos::View containers: (F,P) or (F,P,D) output values, and (P,D) points.
+
+        The views are handed to the virtual getValues() above as DynRankViews that alias the same data;
+        the basis implementations run their kernels on static-rank views again.
+    */
+    template<ViewOfRank<2,3> OutputValuesView, ViewOfRank<2> InputPointsView>
+    void getValues( const ExecutionSpace& space,
+                          OutputValuesView outputValues,
+                    const InputPointsView  inputPoints,
+                    const EOperator operatorType = OPERATOR_VALUE ) const {
+      this->getValues(space,
+                      Impl::toDynRankView<OutputViewType>(outputValues),
+                      Impl::toDynRankView<PointViewType>(inputPoints),
+                      operatorType);
+    }
+
+    //! @overload
+    template<ViewOfRank<2,3> OutputValuesView, ViewOfRank<2> InputPointsView>
+    void getValues(       OutputValuesView outputValues,
+                    const InputPointsView  inputPoints,
+                    const EOperator operatorType = OPERATOR_VALUE ) const {
       this->getValues(ExecutionSpace{}, outputValues, inputPoints, operatorType);
     }
 

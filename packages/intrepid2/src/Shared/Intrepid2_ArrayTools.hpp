@@ -18,6 +18,7 @@
 
 #include "Intrepid2_ConfigDefs.hpp"
 #include "Intrepid2_Types.hpp"
+#include "Intrepid2_ViewConcepts.hpp"
 
 #include "Intrepid2_Kernels.hpp"
 
@@ -580,9 +581,22 @@ namespace Intrepid2 {
         \param  inputFields     [in] - Input fields array.
         \param  transpose       [in] - If 'T', use transposed tensor; if 'N', no transpose. Default: 'N'.
     */
+    template<ViewOfRank<4>     OutputFieldViewType,
+             ViewOfRank<2,3,4> InputDataViewType,
+             ViewOfRank<3,4>   InputFieldViewType>
+    static void
+    matvecProductDataField(       OutputFieldViewType outputFields,
+                            const InputDataViewType   inputData,
+                            const InputFieldViewType  inputFields,
+                            const char transpose = 'N');
+
+    /** \brief Kokkos::DynRankView variant of matvecProductDataField(): converts the arguments to
+                static-rank Views that alias the same data and calls the static-rank overload above.
+    */
     template<typename outputFieldValueType, class ...outputFieldProperties,
              typename inputDataValueType,   class ...inputDataProperties,
              typename inputFieldValueType,  class ...inputFieldProperties>
+    INTREPID2_DEPRECATED_DYNRANKVIEW
     static void
     matvecProductDataField(       Kokkos::DynRankView<outputFieldValueType,outputFieldProperties...> outputFields,
                             const Kokkos::DynRankView<inputDataValueType,  inputDataProperties...>   inputData,
@@ -621,9 +635,22 @@ namespace Intrepid2 {
         \param  inputDataRight   [in] - Right input data array.
         \param  transpose        [in] - If 'T', use transposed tensor; if 'N', no transpose. Default: 'N'.
     */
+    template<ViewOfRank<3>     OutputDataViewType,
+             ViewOfRank<2,3,4> InputDataLeftViewType,
+             ViewOfRank<2,3>   InputDataRightViewType>
+    static void
+    matvecProductDataData(       OutputDataViewType     outputData,
+                           const InputDataLeftViewType  inputDataLeft,
+                           const InputDataRightViewType inputDataRight,
+                           const char transpose = 'N');
+
+    /** \brief Kokkos::DynRankView variant of matvecProductDataData(): converts the arguments to
+                static-rank Views that alias the same data and calls the static-rank overload above.
+    */
     template<typename outputDataValueType,     class ...outputDataProperties,
              typename inputDataLeftValueType,  class ...inputDataLeftProperties,
              typename inputDataRightValueType, class ...inputDataRightProperties>
+    INTREPID2_DEPRECATED_DYNRANKVIEW
     static void
     matvecProductDataData(       Kokkos::DynRankView<outputDataValueType,    outputDataProperties...>    outputData,
                            const Kokkos::DynRankView<inputDataLeftValueType, inputDataLeftProperties...> inputDataLeft,
@@ -822,14 +849,16 @@ namespace Intrepid2 {
                     const Kokkos::DynRankView<rightInputValueType,rightInputProperties...>  rightInput,
                     const bool hasField );
       
-      template<typename outputValueType,     class ...outputProperties,
-               typename leftInputValueType,  class ...leftInputProperties,
-               typename rightInputValueType, class ...rightInputProperties>
+      // output (C,F,P,D) with right input (C,F,P,D) or (F,P,D); or output (C,P,D) with right input (C,P,D) or (P,D).
+      // Whether there is a field dimension follows from the rank of the output.
+      template<ViewOfRank<3,4>   OutputViewType,
+               ViewOfRank<2,3,4> LeftInputViewType,
+               ViewOfRank<2,3,4> RightInputViewType>
+      requires (RightInputViewType::rank() == OutputViewType::rank() || RightInputViewType::rank() + 1 == OutputViewType::rank())
       static void
-      matvecProduct(       Kokkos::DynRankView<outputValueType,    outputProperties...>      output,
-                     const Kokkos::DynRankView<leftInputValueType, leftInputProperties...>   leftInput,
-                     const Kokkos::DynRankView<rightInputValueType,rightInputProperties...>  rightInput,
-                     const bool hasField,
+      matvecProduct(       OutputViewType     output,
+                     const LeftInputViewType  leftInput,
+                     const RightInputViewType rightInput,
                      const bool isTranspose );
       
       template<typename outputValueType,     class ...outputProperties,

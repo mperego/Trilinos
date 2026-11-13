@@ -870,130 +870,46 @@ namespace Intrepid2 {
   } //namespace
 
   template<typename DeviceType>
-  template<typename outputValueType,     class ...outputProperties,
-           typename leftInputValueType,  class ...leftInputProperties,
-           typename rightInputValueType, class ...rightInputProperties>
+  template<ViewOfRank<3,4>   OutputViewType,
+           ViewOfRank<2,3,4> LeftInputViewType,
+           ViewOfRank<2,3,4> RightInputViewType>
+  requires (RightInputViewType::rank() == OutputViewType::rank() || RightInputViewType::rank() + 1 == OutputViewType::rank())
   void
   ArrayTools<DeviceType>::Internal::
-  matvecProduct(       Kokkos::DynRankView<outputValueType,    outputProperties...>      output,
-                 const Kokkos::DynRankView<leftInputValueType, leftInputProperties...>   leftInput,
-                 const Kokkos::DynRankView<rightInputValueType,rightInputProperties...>  rightInput,
-                 const bool hasField,
+  matvecProduct(       OutputViewType     output,
+                 const LeftInputViewType  leftInput,
+                 const RightInputViewType rightInput,
                  const bool isTranspose ) {
-    
-    using Output = Kokkos::DynRankView<outputValueType,    outputProperties...>;
-    using Left   = const Kokkos::DynRankView<leftInputValueType, leftInputProperties...>;
-    using Right  = const Kokkos::DynRankView<rightInputValueType,rightInputProperties...>;
-    
-    // FTNMAB: FunctorType with left rank N, right rank M, hasField = (A==T), isTranspose = (B==T)
-    
-    // hasField == true
-    using FT44TT = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,4,  true,  true>;
-    using FT43TT = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,3,  true,  true>;
-    using FT44TF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,4,  true, false>;
-    using FT43TF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,3,  true, false>;
-    
-    // for left rank 3, 2, isTranspose does not matter
-    using FT34TF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,3,4,  true, false>;
-    using FT33TF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,3,3,  true, false>;
-    using FT24TF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,2,4,  true, false>;
-    using FT23TF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,2,3,  true, false>;
-    
-    // hasField == false
-    using FT43FT = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,3, false,  true>;
-    using FT42FT = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,2, false,  true>;
-    using FT43FF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,3, false, false>;
-    using FT42FF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,4,2, false, false>;
-    
-    // for left rank 3, 2, isTranspose does not matter
-    using FT33FF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,3,3, false, false>;
-    using FT32FF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,3,2, false, false>;
-    using FT23FF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,2,3, false, false>;
-    using FT22FF = FunctorArrayTools::F_matvecProduct<Output,Left,Right,2,2, false, false>;
 
-    const ordinal_type l = leftInput.rank();
-    const ordinal_type r = rightInput.rank();
-    
-    using range_policy2 = Kokkos::MDRangePolicy< ExecSpaceType, Kokkos::Rank<2>, Kokkos::IndexType<ordinal_type> >;
-    range_policy2 policy2( { 0, 0 }, { output.extent(0), output.extent(1) } );
-    
-    using range_policy3 = Kokkos::MDRangePolicy< ExecSpaceType, Kokkos::Rank<3>, Kokkos::IndexType<ordinal_type> >;
-    range_policy3 policy3( { 0, 0, 0 }, { output.extent(0), output.extent(1), output.extent(2) } );
-    
-    // just to make the below a little easier to read, we pack l and r together:
-    const ordinal_type lr = l * 10 + r;
-    const auto &ov = output;
-    const auto &lv = leftInput;
-    const auto &rv = rightInput;
-    
-    if (hasField) // this means we want policy3
-    {
-      if (l == 4)
-      {
-        // isTranspose matters
-        if (isTranspose)
-        {
-          switch (r)
-          {
-            case 4:  { FT44TT f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); } break;
-            default: { FT43TT f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); }
-          }
-        }
-        else
-        {
-          switch (r)
-          {
-            case 4:  { FT44TF f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); } break;
-            default: { FT43TF f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); }
-          }
-        }
+    // The ranks, and with them the functor to run, are known at compile time: only the one
+    // (left rank, right rank, hasField) combination requested is instantiated, where the DynRankView
+    // implementation instantiated all sixteen and selected among them at run time.
+    constexpr ordinal_type l = LeftInputViewType::rank();
+    constexpr ordinal_type r = RightInputViewType::rank();
+    constexpr bool hasField  = (OutputViewType::rank() == 4);
+
+    using Functor          = FunctorArrayTools::F_matvecProduct<OutputViewType,const LeftInputViewType,const RightInputViewType,l,r,hasField,false>;
+    using FunctorTranspose = FunctorArrayTools::F_matvecProduct<OutputViewType,const LeftInputViewType,const RightInputViewType,l,r,hasField, true>;
+
+    const auto run = [&](const auto &policy) {
+      // isTranspose only matters when the left input holds full matrices (rank 4)
+      if constexpr (l == 4) {
+        if (isTranspose) { Kokkos::parallel_for( policy, FunctorTranspose(output, leftInput, rightInput) ); return; }
       }
-      else // l == 3 or 2; isTranspose does not matter
-      {
-        switch (lr)
-        {
-          case 34: { FT34TF f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); } break;
-          case 33: { FT33TF f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); } break;
-          case 24: { FT24TF f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); } break;
-          default: { FT23TF f(ov,lv,rv); Kokkos::parallel_for( policy3, f ); } // 23
-        }
-      }
+      Kokkos::parallel_for( policy, Functor(output, leftInput, rightInput) );
+    };
+
+    if constexpr (hasField) {
+      using range_policy3 = Kokkos::MDRangePolicy< ExecSpaceType, Kokkos::Rank<3>, Kokkos::IndexType<ordinal_type> >;
+      run( range_policy3( { 0, 0, 0 }, { output.extent(0), output.extent(1), output.extent(2) } ) );
     }
-    else // hasField is false; use policy2
-    {
-      if (l == 4)
-      {
-        // isTranspose matters
-        if (isTranspose)
-        {
-          switch (r)
-          {
-            case 3:  { FT43FT f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } break;
-            default: { FT42FT f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } // 2
-          }
-        }
-        else
-        {
-          switch (r)
-          {
-            case 3:  { FT43FF f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } break;
-            default: { FT42FF f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } // 2
-          }
-        }
-      }
-      else // l == 3 or 2; isTranspose does not matter
-      {
-        switch (lr)
-        {
-          case 33: { FT33FF f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } break;
-          case 32: { FT32FF f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } break;
-          case 23: { FT23FF f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } break;
-          default: { FT22FF f(ov,lv,rv); Kokkos::parallel_for( policy2, f ); } // 22
-        }
-      }
+    else {
+      using range_policy2 = Kokkos::MDRangePolicy< ExecSpaceType, Kokkos::Rank<2>, Kokkos::IndexType<ordinal_type> >;
+      run( range_policy2( { 0, 0 }, { output.extent(0), output.extent(1) } ) );
     }
   }
 
+  // DynRankView arguments: convert to static-rank Views of the run-time rank and forward.
   template<typename DeviceType>
   template<typename outputFieldValueType, class ...outputFieldProperties,
            typename inputDataValueType,   class ...inputDataProperties,
@@ -1002,6 +918,22 @@ namespace Intrepid2 {
   ArrayTools<DeviceType>::matvecProductDataField(      Kokkos::DynRankView<outputFieldValueType,outputFieldProperties...> outputFields,
                           const Kokkos::DynRankView<inputDataValueType,  inputDataProperties...>   inputData,
                           const Kokkos::DynRankView<inputFieldValueType, inputFieldProperties...> inputFields,
+                          const char transpose ) {
+    Impl::dispatchStaticRank("ArrayTools::matvecProductDataField",
+      [transpose](const auto &output, const auto &data, const auto &fields)
+        requires requires { ArrayTools<DeviceType>::matvecProductDataField(output, data, fields, transpose); }
+      { ArrayTools<DeviceType>::matvecProductDataField(output, data, fields, transpose); },
+      Impl::ranks<4,4>(outputFields), Impl::ranks<2,4>(inputData), Impl::ranks<3,4>(inputFields));
+  }
+
+  template<typename DeviceType>
+  template<ViewOfRank<4>     OutputFieldViewType,
+           ViewOfRank<2,3,4> InputDataViewType,
+           ViewOfRank<3,4>   InputFieldViewType>
+  void
+  ArrayTools<DeviceType>::matvecProductDataField(      OutputFieldViewType outputFields,
+                          const InputDataViewType   inputData,
+                          const InputFieldViewType  inputFields,
                           const char transpose ) {
 
 #ifdef HAVE_INTREPID2_DEBUG
@@ -1141,12 +1073,12 @@ namespace Intrepid2 {
     ArrayTools<DeviceType>::Internal::matvecProduct( outputFields,
                                                         inputData,
                                                         inputFields,
-                                                        true,
                                                         transpose == 't' || transpose == 'T' );
   }
 
 
 
+  // DynRankView arguments: convert to static-rank Views of the run-time rank and forward.
   template<typename DeviceType>
   template<typename outputDataValueType,     class ...outputDataProperties,
            typename inputDataLeftValueType,  class ...inputDataLeftProperties,
@@ -1156,6 +1088,23 @@ namespace Intrepid2 {
   matvecProductDataData(       Kokkos::DynRankView<outputDataValueType,    outputDataProperties...>    outputData,
                          const Kokkos::DynRankView<inputDataLeftValueType, inputDataLeftProperties...> inputDataLeft,
                          const Kokkos::DynRankView<inputDataRightValueType,inputDataRightProperties...>    inputDataRight,
+                         const char transpose ) {
+    Impl::dispatchStaticRank("ArrayTools::matvecProductDataData",
+      [transpose](const auto &output, const auto &left, const auto &right)
+        requires requires { ArrayTools<DeviceType>::matvecProductDataData(output, left, right, transpose); }
+      { ArrayTools<DeviceType>::matvecProductDataData(output, left, right, transpose); },
+      Impl::ranks<3,3>(outputData), Impl::ranks<2,4>(inputDataLeft), Impl::ranks<2,3>(inputDataRight));
+  }
+
+  template<typename DeviceType>
+  template<ViewOfRank<3>     OutputDataViewType,
+           ViewOfRank<2,3,4> InputDataLeftViewType,
+           ViewOfRank<2,3>   InputDataRightViewType>
+  void
+  ArrayTools<DeviceType>::
+  matvecProductDataData(       OutputDataViewType     outputData,
+                         const InputDataLeftViewType  inputDataLeft,
+                         const InputDataRightViewType inputDataRight,
                          const char transpose ) {
 
 #ifdef HAVE_INTREPID2_DEBUG
@@ -1299,7 +1248,6 @@ namespace Intrepid2 {
     ArrayTools<DeviceType>::Internal::matvecProduct( outputData,
                                                         inputDataLeft,
                                                         inputDataRight,
-                                                        false,
                                                         transpose == 't' || transpose == 'T' );
   }
 

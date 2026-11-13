@@ -55,63 +55,61 @@ namespace Intrepid2 {
         : _jacobian(jacobian_), _worksetCells(worksetCells_), _basisGrads(basisGrads_),
           _startCell(startCell_) {}
 
+      // gradients indexed (F,P,D): the same reference gradients are used for every cell
+      KOKKOS_INLINE_FUNCTION
+      void applyWithSharedGrads(const ordinal_type cell,
+                                const ordinal_type point,
+                                const ordinal_type phys_dim,
+                                const ordinal_type ref_dim) const {
+        const ordinal_type cardinality = _basisGrads.extent(0);
+        for (ordinal_type i=0;i<phys_dim;++i)
+          for (ordinal_type j=0;j<ref_dim;++j) {
+            _jacobian(cell, point, i, j) = 0;
+            for (ordinal_type bf=0;bf<cardinality;++bf)
+              _jacobian(cell, point, i, j) += _worksetCells(cell+_startCell, bf, i) * _basisGrads(bf, point, j);
+          }
+      }
+
+      // gradients indexed (C,F,P,D)
+      KOKKOS_INLINE_FUNCTION
+      void applyWithCellGrads(const ordinal_type cell,
+                              const ordinal_type point,
+                              const ordinal_type phys_dim,
+                              const ordinal_type ref_dim) const {
+        const ordinal_type cardinality = _basisGrads.extent(1);
+        for (ordinal_type i=0;i<phys_dim;++i)
+          for (ordinal_type j=0;j<ref_dim;++j) {
+            _jacobian(cell, point, i, j) = 0;
+            for (ordinal_type bf=0;bf<cardinality;++bf)
+              _jacobian(cell, point, i, j) += _worksetCells(cell+_startCell, bf, i) * _basisGrads(cell, bf, point, j);
+          }
+      }
+
       KOKKOS_INLINE_FUNCTION
       void operator()(const ordinal_type cell,
                       const ordinal_type point) const {
         
         const ordinal_type phys_dim = _jacobian.extent(2); // dim2 and dim3 should match
-        
-        const ordinal_type gradRank = rank(_basisGrads);
 
-        if constexpr (squareJacobian)
-        {
-          const ordinal_type dim = phys_dim;
+        // For a static-rank Kokkos::View the choice between (F,P,D) and (C,F,P,D) gradients is made at
+        // compile time, and only the matching member above is instantiated (the other would not compile:
+        // it indexes the gradients with the wrong number of arguments).  For containers whose rank is
+        // only known at run time (DynRankView, Data, user functors) we branch per (cell,point), as before.
+        constexpr int staticGradRank = Impl::static_rank_v<basisGradType>;
 
-          if ( gradRank == 3)
-          {
-            const ordinal_type cardinality = _basisGrads.extent(0);
-            for (ordinal_type i=0;i<dim;++i)
-              for (ordinal_type j=0;j<dim;++j) {
-                _jacobian(cell, point, i, j) = 0;
-                for (ordinal_type bf=0;bf<cardinality;++bf)
-                  _jacobian(cell, point, i, j) += _worksetCells(cell+_startCell, bf, i) * _basisGrads(bf, point, j);
-              }
-          }
-          else
-          {
-            const ordinal_type cardinality = _basisGrads.extent(1);
-            for (ordinal_type i=0;i<dim;++i)
-            for (ordinal_type j=0;j<dim;++j) {
-              _jacobian(cell, point, i, j) = 0;
-              for (ordinal_type bf=0;bf<cardinality;++bf)
-                _jacobian(cell, point, i, j) += _worksetCells(cell+_startCell, bf, i) * _basisGrads(cell, bf, point, j);
-            }
-          }
+        if constexpr (staticGradRank == 3) {
+          applyWithSharedGrads(cell, point, phys_dim, squareJacobian ? phys_dim : _basisGrads.extent_int(2));
         }
-        else
-        {
-          const ordinal_type ref_dim = _basisGrads.extent_int(gradRank-1);
-
+        else if constexpr (staticGradRank == 4) {
+          applyWithCellGrads(cell, point, phys_dim, squareJacobian ? phys_dim : _basisGrads.extent_int(3));
+        }
+        else {
+          const ordinal_type gradRank = rank(_basisGrads);
+          const ordinal_type ref_dim  = squareJacobian ? phys_dim : _basisGrads.extent_int(gradRank-1);
           if ( gradRank == 3)
-          {
-            const ordinal_type cardinality = _basisGrads.extent(0);
-            for (ordinal_type i=0;i<phys_dim;++i)
-              for (ordinal_type j=0;j<ref_dim;++j) {
-                _jacobian(cell, point, i, j) = 0;
-                for (ordinal_type bf=0;bf<cardinality;++bf)
-                  _jacobian(cell, point, i, j) += _worksetCells(cell+_startCell, bf, i) * _basisGrads(bf, point, j);
-              }
-          }
+            applyWithSharedGrads(cell, point, phys_dim, ref_dim);
           else
-          {
-            const ordinal_type cardinality = _basisGrads.extent(1);
-            for (ordinal_type i=0;i<phys_dim;++i)
-            for (ordinal_type j=0;j<ref_dim;++j) {
-              _jacobian(cell, point, i, j) = 0;
-              for (ordinal_type bf=0;bf<cardinality;++bf)
-                _jacobian(cell, point, i, j) += _worksetCells(cell+_startCell, bf, i) * _basisGrads(cell, bf, point, j);
-            }
-          }
+            applyWithCellGrads(cell, point, phys_dim, ref_dim);
         }
       }
     };

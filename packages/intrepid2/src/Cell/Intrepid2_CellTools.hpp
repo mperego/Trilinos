@@ -25,6 +25,7 @@
 
 #include "Intrepid2_Types.hpp"
 #include "Intrepid2_Utils.hpp"
+#include "Intrepid2_ViewConcepts.hpp"
 
 #include "Intrepid2_RealSpaceTools.hpp"
 

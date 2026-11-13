@@ -273,7 +273,6 @@ namespace Intrepid2 {
                      Kokkos::DynRankView<outputValueValueType,outputValueProperties...> outputValues,
                const Kokkos::DynRankView<inputPointValueType, inputPointProperties...>  inputPoints,
                const EOperator operatorType ) {
-      typedef          Kokkos::DynRankView<outputValueValueType,outputValueProperties...>         outputValueViewType;
       typedef          Kokkos::DynRankView<inputPointValueType, inputPointProperties...>          inputPointViewType;
       typedef typename ExecSpace<typename inputPointViewType::execution_space,typename DT::execution_space>::ExecSpaceType ExecSpaceType;
 
@@ -281,17 +280,27 @@ namespace Intrepid2 {
       const auto loopSize = inputPoints.extent(0);
       Kokkos::RangePolicy<ExecSpaceType,Kokkos::Schedule<Kokkos::Static> > policy(space, 0, loopSize);
 
+      // The operator fixes the rank of the output: (F,P) for values, (F,P,D) / (F,P,Dk) for derivatives.
+      // The kernels therefore run on static-rank Views that alias the DynRankView arguments.
+      const auto points = Intrepid2::Impl::toStaticView<2>(inputPoints);
+      const auto scalarValued = [&]<EOperator opType>(std::integral_constant<EOperator,opType>) {
+        const auto output = Intrepid2::Impl::toStaticView<2>(outputValues);
+        Kokkos::parallel_for( policy, Functor<std::remove_const_t<decltype(output)>,std::remove_const_t<decltype(points)>,opType>(output, points) );
+      };
+      const auto vectorValued = [&]<EOperator opType>(std::integral_constant<EOperator,opType>) {
+        const auto output = Intrepid2::Impl::toStaticView<3>(outputValues);
+        Kokkos::parallel_for( policy, Functor<std::remove_const_t<decltype(output)>,std::remove_const_t<decltype(points)>,opType>(output, points) );
+      };
+
       switch (operatorType) {
 
       case OPERATOR_VALUE: {
-        typedef Functor<outputValueViewType,inputPointViewType,OPERATOR_VALUE> FunctorType;
-        Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints) );
+        scalarValued(std::integral_constant<EOperator,OPERATOR_VALUE>());
         break;
       }
       case OPERATOR_GRAD:
       case OPERATOR_D1: {
-        typedef Functor<outputValueViewType,inputPointViewType,OPERATOR_GRAD> FunctorType;
-        Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints) );
+        vectorValued(std::integral_constant<EOperator,OPERATOR_GRAD>());
         break;
       }
       case OPERATOR_CURL: {
@@ -307,13 +316,11 @@ namespace Intrepid2 {
       }
 
       case OPERATOR_D2: {
-        typedef Functor<outputValueViewType,inputPointViewType,OPERATOR_D2> FunctorType;
-        Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints) );
+        vectorValued(std::integral_constant<EOperator,OPERATOR_D2>());
         break;
       }
       case OPERATOR_D3:{
-        typedef Functor<outputValueViewType,inputPointViewType,OPERATOR_D3> FunctorType;
-        Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints) );
+        vectorValued(std::integral_constant<EOperator,OPERATOR_D3>());
         break;
       }
       case OPERATOR_D4:
@@ -323,8 +330,7 @@ namespace Intrepid2 {
       case OPERATOR_D8:
       case OPERATOR_D9:
       case OPERATOR_D10: {
-        typedef Functor<outputValueViewType,inputPointViewType,OPERATOR_MAX> FunctorType;
-        Kokkos::parallel_for( policy, FunctorType(outputValues, inputPoints) );
+        vectorValued(std::integral_constant<EOperator,OPERATOR_MAX>());
         break;
       }
       default: {
@@ -433,21 +439,27 @@ namespace Intrepid2 {
 
       const int numPoints = inputPoints.extent(0);
 
+      const auto points = Intrepid2::Impl::toStaticView<2>(inputPoints);
+
       switch(operatorType) {
-        case OPERATOR_VALUE:
+        case OPERATOR_VALUE: {
+          const auto values = Intrepid2::Impl::toStaticView<2>(outputValues); // (F,P)
           Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (const ordinal_type pt) {
-            auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), pt, Kokkos::ALL() );
-            const auto input  = Kokkos::subview( inputPoints,                 pt, Kokkos::ALL() );
+            auto       output = Kokkos::subview( values, Kokkos::ALL(), pt );
+            const auto input  = Kokkos::subview( points,                pt, Kokkos::ALL() );
             Impl::Basis_HGRAD_HEX_C1_FEM::Serial<OPERATOR_VALUE>::getValues( output, input);
           });
           break;
-        case OPERATOR_GRAD:
+        }
+        case OPERATOR_GRAD: {
+          const auto grads = Intrepid2::Impl::toStaticView<3>(outputValues); // (F,P,D)
           Kokkos::parallel_for (Kokkos::TeamThreadRange (team_member, numPoints), [=] (const ordinal_type pt) {
-            auto       output = Kokkos::subview( outputValues, Kokkos::ALL(), pt, Kokkos::ALL() );
-            const auto input  = Kokkos::subview( inputPoints,                 pt, Kokkos::ALL() );
+            auto       output = Kokkos::subview( grads,  Kokkos::ALL(), pt, Kokkos::ALL() );
+            const auto input  = Kokkos::subview( points,                pt, Kokkos::ALL() );
             Impl::Basis_HGRAD_HEX_C1_FEM::Serial<OPERATOR_GRAD>::getValues( output, input);
           });
           break;
+        }
         default: {}
     }
   }

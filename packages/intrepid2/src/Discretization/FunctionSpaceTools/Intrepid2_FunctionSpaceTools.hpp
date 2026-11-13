@@ -610,9 +610,21 @@ namespace Intrepid2 {
         \param  inputVals        [in]  - Input array of reference HCURL values.
 
     */
+    template<ViewOfRank<4>   OutputValViewType,
+             ViewOfRank<4>   JacobianInverseViewType,
+             ViewOfRank<3,4> InputValViewType>
+    static void
+    HCURLtransformVALUE(       OutputValViewType       outputVals,
+                         const JacobianInverseViewType jacobianInverse,
+                         const InputValViewType        inputVals ) {
+      ArrayTools<DeviceType>::matvecProductDataField(outputVals, jacobianInverse, inputVals, 'T');
+    }
+
+    /** \brief Kokkos::DynRankView variant of HCURLtransformVALUE(); forwards to the static-rank implementation. */
     template<typename outputValValueType,       class ...outputValProperties,
              typename jacobianInverseValueType, class ...jacobianInverseProperties,
              typename inputValValueType,        class ...inputValProperties>
+    INTREPID2_DEPRECATED_DYNRANKVIEW
     static void 
     HCURLtransformVALUE(       Kokkos::DynRankView<outputValValueType,      outputValProperties...>       outputVals,
                          const Kokkos::DynRankView<jacobianInverseValueType,jacobianInverseProperties...> jacobianInverse,
